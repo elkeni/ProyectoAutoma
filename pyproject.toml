@@ -82,3 +82,5 @@ vercel_identity = "vercel whoami"
 vercel_login = "vercel login"
 vercel_deploy = "vercel deploy --prod --yes --name proyecto-automa"
 git_commit_vercel = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Adaptar demo FastAPI para Vercel"'
+deployment_check = "python scripts/verificar_despliegue.py"
+git_commit_publication = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Documentar publicacion y verificaciones remotas"'

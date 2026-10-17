@@ -3,6 +3,9 @@
 Demostración local de automatización del proceso de minuta notarial de compraventa
 de inmueble, con FastAPI, LangChain, LangGraph, SQLite y workflows exportables de n8n.
 
+**Demo publicada:** <https://proyecto-automa.vercel.app> ·
+**Repositorio:** <https://github.com/elkeni/ProyectoAutoma>
+
 ## Ejecución local
 
 Requiere Python 3.11 o 3.12. Desde la carpeta del proyecto:
@@ -68,3 +71,8 @@ demo y checkpoints; el estado puede restablecerse al cambiar o reiniciar la
 instancia. Esta configuración permite mostrar la aplicación, pero no ofrece
 persistencia compartida entre funciones. Un uso real requiere almacenamiento
 externo y checkpoints persistentes, además de autenticación.
+
+El despliegue inicial se realizó desde la sesión del propietario mediante Vercel
+CLI. Las verificaciones de GitHub Actions están activas; el despliegue automático
+de futuros commits requiere completar en Vercel la conexión GitHub con acceso al
+repositorio de `elkeni`.
