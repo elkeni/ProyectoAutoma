@@ -1,0 +1,33 @@
+name: Validacion del proyecto
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    env:
+      SAGALE_LLM_PROVIDER: fake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias
+        run: python -m pip install -e ".[dev]"
+      - name: Verificar BPMN y gobernanza
+        run: python scripts/validar_fase1.py
+      - name: Ejecutar pruebas
+        run: python -m pytest -q
+      - name: Revisar estilo
+        run: python -m ruff check .
+      - name: Revisar formato
+        run: python -m ruff format --check .
+      - name: Revisar tipos
+        run: python -m mypy nucleo rpa ingesta decision mcp_server agentes web tests
+      - name: Revisar sintaxis
+        run: python -m compileall -q nucleo rpa ingesta decision mcp_server agentes web tests

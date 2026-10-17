@@ -1,0 +1,149 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="05_Arquitectura_v2" name="05_Arquitectura_v2">
+    <mxGraphModel dx="1920" dy="1080" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1832" pageHeight="980" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <!-- Capa 1: Portal y API -->
+        <mxCell id="2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EBF0F5;strokeColor=#12243A;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="25" width="1600" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="21" value="PORTAL WEB SÁGALE ABOGADOS AaaS + REST API (HTTP POST Contrato 10 campos)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=22;fontColor=#12243A;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="32" width="1560" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="22" value="Aislamiento por expediente (expediente_id) · Bandeja HITL del Abogado · Chat RAG con citas · Respuestas 201 / 200 / 400" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=18;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="60" width="1560" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 2: Orquestador LangGraph -->
+        <mxCell id="3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF9DB;strokeColor=#B96516;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="115" width="1600" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="23" value="ORCHESTRATOR · Deep Agent Supervisor (LangGraph StateGraph + Checkpointer)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=22;fontColor=#B96516;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="120" width="1560" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="24" value="Gobierna transiciones P01 → P02 → P03, estado tipado (EstadoExpediente), pausas interrupt() y reanudación HITL" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=18;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="148" width="1560" height="26" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 3: Decision Layer (System 1) -->
+        <mxCell id="4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FCE8E6;strokeColor=#C5221F;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="200" width="1600" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="25" value="DECISION LAYER · System 1 (Reglas Deterministas y Cabezal Calibrado)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=22;fontColor=#C5221F;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="206" width="1560" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="26" value="decide(): tipado y auditable · Choose | Score | Bool → devuelve p(opción), confianza y ruta en &lt; 50 ms&#10;Valida 10 campos, normalización, clave SHA-256, backoff (2, 4 y 8 s) y plazos (P5D / PT72H) fuera del LLM" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=18;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="234" width="1560" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 4: Risk-Based HITL Gate -->
+        <mxCell id="5" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2E2;strokeColor=#B96516;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="310" width="1600" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="27" value="RISK-BASED HITL GATE (Compuerta de Intervención Humana Basada en Riesgo Jurídico)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#B96516;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="315" width="1560" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="28" value="p ≥ τ_auto (regla determinista limpia) → auto-execute   |   τ_rev ≤ p &lt; τ_auto o decisión jurídica (p2_legal, p3_revision, p3_firma) → interrupt() HITL   |   p &lt; τ_rev o fallo → escalar incidente" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=17;fontColor=#12243A;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="343" width="1560" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 5: A0 Ingesta transversal -->
+        <mxCell id="6" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#2563EB;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="400" width="1600" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="29" value="AGENTE A0 · Ingesta Documental Drive · Idempotencia SHA-256 · Compuerta de Datos Personales (Ley 29733) antes de indexar" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#2563EB;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="408" width="1560" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="30" value="Descarga recaudos (DNI, Partida SUNARP, HR/PU), bloquea/enmascara PII no autorizada, controla versiones (p2_version) y vectoriza por expediente" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=17;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="434" width="1560" height="26" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 6: Agentes Especializados A1, A2, A3 -->
+        <mxCell id="7" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E9F8F1;strokeColor=#087F66;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="485" width="510" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="31" value="AGENTE A1 · Calificador Registral (P02)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#087F66;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="126" y="492" width="490" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="32" value="Identifica faltantes, inconsistencias DNI/Partida y gravámenes SUNARP. Valida JSON (p2_parser) y deriva a revisión jurídica (p2_legal) o subsanación (P5D)." style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="126" y="522" width="490" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="8" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E9F8F1;strokeColor=#087F66;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="661" y="485" width="510" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="33" value="AGENTE A2 · Redactor y Cierre (P03)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#087F66;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="671" y="492" width="490" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="34" value="Genera minuta en Word/Markdown (con cláusula de levantamiento si aplica), aplica correcciones del Titular (p3_revision), controla PT72H y registra kárdex." style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="671" y="522" width="490" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="9" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E9F8F1;strokeColor=#087F66;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1206" y="485" width="510" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="35" value="AGENTE A3 · Asistente y Auditoría RAG" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#087F66;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1216" y="492" width="490" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="36" value="Responde consultas sobre el expediente citando obligatoriamente el documento fuente (Partida SUNARP, DNI, minuta) y reporta indicadores P01-P03." style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1216" y="522" width="490" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 7: Cognitive Layer (System 2) + Knowledge Layer -->
+        <mxCell id="10" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#2563EB;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="610" width="780" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="37" value="COGNITIVE LAYER · System 2 ( Inferencia Controlada )" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#2563EB;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="618" width="740" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="38" value="get_llm() único: Ollama local (Llama 3.1 8B) | Google Gemini API | FakeListChatModel (CI Tests)&#10;Structured Output Parser con validación Pydantic obligatoria (CalificacionPreliminarJSON)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="646" width="740" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="11" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3EEFF;strokeColor=#7054A5;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="936" y="610" width="780" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="39" value="KNOWLEDGE LAYER · RAG por Expediente y Almacén de Estado" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#7054A5;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="956" y="618" width="740" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="40" value="Índice único de recaudos por hash y versión · Colecciones aisladas por expediente_id&#10;Tablas persistentes: Solicitudes, Cola_Fallidos, Versiones_Recaudos, Tareas_HITL y Trazas" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="956" y="646" width="740" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 8: Tools / MCP Server + Governance -->
+        <mxCell id="12" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#516277;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="725" width="780" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="41" value="TOOLS &amp; SERVIDOR MCP (Model Context Protocol)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#12243A;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="732" width="740" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="42" value="Servidor MCP sagale-mcp: recursos (expedientes, recaudos) y herramientas con privilegio mínimo&#10;Conectores: Google Sheets / SQLite · Google Drive · Generador Word (.docx/.md) · Notificaciones" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="760" width="740" height="48" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="13" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#516277;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="936" y="725" width="780" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="43" value="GOVERNANCE &amp; TRAZABILIDAD (CLAUDE.md / AGENTS.md)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#12243A;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="956" y="732" width="740" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="44" value="Trazas auditables por ejecución (ID expediente, versión, nodo BPMN, hallazgos, decisión humana)&#10;8 invariantes técnicos · 5 Skills · 2 Hooks deterministas (proteger.sh, verificar_python.sh)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=16;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="956" y="760" width="740" height="48" as="geometry"/>
+        </mxCell>
+
+        <!-- Capa 9: Calibration Loop -->
+        <mxCell id="14" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E9F8F1;strokeColor=#087F66;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="116" y="835" width="1600" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="45" value="CALIBRATION LOOP (Bucle de Calibración Continua)" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=20;fontColor=#087F66;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="842" width="1560" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="46" value="Cada resolución humana en HITL (p2_legal, p2_subsanacion, p3_revision) se registra como etiqueta → calcula Brier Score y ECE → ajusta umbrales τ y detecta drift" style="text;html=1;whiteSpace=wrap;fontFamily=Inter;fontSize=17;fontColor=#12243A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="136" y="870" width="1560" height="30" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

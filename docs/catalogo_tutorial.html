@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Catálogo tutorial y matriz de trazabilidad del proceso de minuta notarial de Ságale Abogados.">
+  <title>Ságale Automation Atlas · Catálogo y trazabilidad</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #020617;
+      --surface: #0b1120;
+      --card: #0e172a;
+      --card-2: #111c31;
+      --line: #2b3b55;
+      --line-soft: rgba(148, 163, 184, .18);
+      --text: #f8fafc;
+      --muted: #a9b7ca;
+      --quiet: #7f91aa;
+      --accent: #4ade80;
+      --accent-strong: #22c55e;
+      --accent-ink: #052e16;
+      --gold: #f6c76f;
+      --p1: #67e8f9;
+      --p2: #c4b5fd;
+      --p3: #fdba74;
+      --danger: #fb7185;
+      --warning: #facc15;
+      --radius: 18px;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .28);
+      --header-h: 76px;
+      --max: 1220px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      overflow-x: clip;
+      background:
+        radial-gradient(circle at 9% -5%, rgba(34, 197, 94, .12), transparent 34rem),
+        radial-gradient(circle at 92% 12%, rgba(103, 232, 249, .09), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+      font: 400 16px/1.65 "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .13;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+    a { color: inherit; }
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+    ::selection { color: var(--accent-ink); background: var(--accent); }
+    .skip-link {
+      position: fixed; z-index: 100; left: 16px; top: -80px;
+      padding: 12px 16px; border-radius: 10px; background: var(--text); color: var(--bg);
+      transition: top .18s ease;
+    }
+    .skip-link:focus { top: 12px; }
+    .topbar {
+      position: sticky; z-index: 50; top: 0;
+      min-height: var(--header-h);
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(2, 6, 23, .88);
+      backdrop-filter: blur(18px);
+    }
+    .progress { position: absolute; inset: auto 0 0; height: 2px; background: rgba(255,255,255,.06); }
+    .progress > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--accent), var(--p1)); }
+    .nav-shell {
+      width: min(var(--max), calc(100% - 32px)); min-height: var(--header-h); margin: auto;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; flex: 0 0 auto; }
+    .brand-mark {
+      width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px;
+      border: 1px solid rgba(74, 222, 128, .45); background: rgba(74, 222, 128, .1); color: var(--accent);
+      font: 700 18px/1 Georgia, serif;
+    }
+    .brand-copy { display: grid; line-height: 1.1; }
+    .brand-copy strong { font-size: 14px; letter-spacing: .03em; }
+    .brand-copy span { margin-top: 4px; color: var(--quiet); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .nav-links { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; justify-content: flex-end; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+    .nav-links a {
+      min-height: 44px; display: inline-flex; align-items: center; padding: 0 13px; border-radius: 10px;
+      color: var(--muted); text-decoration: none; font-size: 13px; white-space: nowrap;
+      transition: color .18s ease, background .18s ease;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); background: rgba(255,255,255,.065); }
+    .nav-links .source-link { color: var(--accent); }
+    main { position: relative; }
+    .shell { width: min(var(--max), calc(100% - 32px)); margin-inline: auto; }
+    section { padding: 92px 0; scroll-margin-top: calc(var(--header-h) + 20px); }
+    .hero { min-height: calc(100svh - var(--header-h)); display: grid; align-items: center; padding: 72px 0 56px; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); align-items: center; gap: clamp(32px, 6vw, 88px); }
+    .hero-grid > * { min-width: 0; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 28px; height: 1px; background: currentColor; }
+    h1, h2, h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; letter-spacing: -.025em; line-height: 1.05; }
+    h1 { max-width: 850px; margin-top: 20px; font-size: clamp(46px, 7.2vw, 92px); font-weight: 500; }
+    h1 em { color: var(--accent); font-style: normal; }
+    .lede { max-width: 710px; margin: 26px 0 0; color: var(--muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.65; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+    .button {
+      min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text);
+      text-decoration: none; font-weight: 700; font-size: 14px; cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .button:hover { transform: translateY(-2px); border-color: #61738d; }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+    .button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .hero-panel { position: relative; padding: 26px; border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(145deg, rgba(17,28,49,.96), rgba(7,15,29,.96)); box-shadow: var(--shadow); }
+    .hero-panel::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: linear-gradient(135deg, rgba(74,222,128,.6), transparent 42%, rgba(103,232,249,.28)); mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
+    .panel-kicker { color: var(--quiet); font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+    .pulse-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
+    .pulse-stat { min-height: 112px; padding: 18px; border-radius: 14px; border: 1px solid var(--line-soft); background: rgba(255,255,255,.025); }
+    .pulse-stat strong { display: block; font: 500 clamp(28px, 4vw, 42px)/1 Georgia, serif; }
+    .pulse-stat span { display: block; margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .status-line { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 13px; }
+    .status-dot { flex: 0 0 auto; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 5px rgba(74,222,128,.11); }
+    .section-head { display: grid; grid-template-columns: minmax(0, .65fr) minmax(300px, .35fr); gap: 40px; align-items: end; margin-bottom: 42px; }
+    .section-index { color: var(--accent); font: 700 12px/1.4 "Segoe UI", sans-serif; letter-spacing: .15em; text-transform: uppercase; }
+    h2 { margin-top: 12px; font-size: clamp(36px, 5vw, 62px); font-weight: 500; }
+    .section-intro { margin: 0; color: var(--muted); }
+    .metric-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+    .metric { min-height: 150px; padding: 21px 18px; border: 1px solid var(--line-soft); border-radius: var(--radius); background: rgba(14,23,42,.72); }
+    .metric .value { display: block; color: var(--text); font: 500 clamp(27px, 3.2vw, 41px)/1 Georgia, serif; }
+    .metric .unit { color: var(--gold); font-size: 13px; }
+    .metric p { margin: 15px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .story-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr); gap: 18px; margin-top: 18px; }
+    .story-grid > * { min-width: 0; }
+    .card { border: 1px solid var(--line-soft); border-radius: var(--radius); background: rgba(14,23,42,.76); box-shadow: 0 10px 40px rgba(0,0,0,.12); }
+    .card-pad { padding: clamp(22px, 3vw, 32px); }
+    .card-title { font: 700 12px/1.4 "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--quiet); }
+    .journey { width: 100%; max-width: 100%; display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 8px; margin-top: 24px; overflow-x: auto; padding-bottom: 8px; }
+    .journey-step { min-width: 140px; padding: 17px 16px; border-radius: 14px; background: var(--card-2); border: 1px solid var(--line-soft); }
+    .journey-step .number { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: rgba(74,222,128,.12); color: var(--accent); font-weight: 800; font-size: 12px; }
+    .journey-step strong { display: block; margin-top: 16px; font-size: 14px; }
+    .journey-step span { display: block; margin-top: 7px; color: var(--quiet); font-size: 12px; line-height: 1.45; }
+    .callout { padding: 22px; border-left: 3px solid var(--gold); background: rgba(246,199,111,.055); border-radius: 0 14px 14px 0; }
+    .callout + .callout { margin-top: 12px; }
+    .callout strong { display: block; color: var(--gold); font-size: 13px; }
+    .callout p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .callout code, code { color: #d5fbe2; font: 600 .9em/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .narration { display: flex; gap: 14px; align-items: flex-start; margin-top: 18px; padding: 18px 20px; border: 1px dashed rgba(103,232,249,.36); border-radius: 14px; color: var(--muted); background: rgba(103,232,249,.035); }
+    .narration .cue { flex: 0 0 auto; color: var(--p1); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .narration p { margin: 0; font-size: 13px; }
+    .trace-toolbar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: end; margin-bottom: 16px; }
+    .search-field { flex: 1 1 330px; }
+    .search-field label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .search-field input { width: 100%; min-height: 48px; padding: 0 15px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); }
+    .search-field input::placeholder { color: #71839b; }
+    .filter-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .filter {
+      min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
+      color: var(--muted); background: transparent; cursor: pointer; font-weight: 700; font-size: 12px;
+      transition: color .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .filter:hover, .filter[aria-pressed="true"] { border-color: var(--accent); color: var(--text); background: rgba(74,222,128,.09); }
+    .coverage-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 18px; margin: 0 0 18px; padding: 13px 16px; border: 1px solid rgba(74,222,128,.26); border-radius: 12px; background: rgba(74,222,128,.055); color: var(--muted); font-size: 12px; }
+    .coverage-strip strong { color: var(--accent); }
+    .table-wrap { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; contain: inline-size; border: 1px solid var(--line-soft); border-radius: var(--radius); background: rgba(10,17,32,.72); }
+    table { width: 100%; border-collapse: collapse; min-width: 850px; }
+    th { position: sticky; top: 0; z-index: 1; padding: 14px 16px; color: var(--quiet); background: #0a1222; text-align: left; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    td { padding: 18px 16px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+    tbody tr { transition: background .16s ease; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    .node-id { display: inline-block; color: var(--text); font: 700 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .node-name { display: block; margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .type-label { color: var(--quiet); font-size: 11px; }
+    .mode { display: inline-flex; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 800; }
+    .mode[data-mode="Automatizado"] { border-color: rgba(74,222,128,.3); color: #9bf5b8; }
+    .mode[data-mode="HITL"] { border-color: rgba(246,199,111,.34); color: var(--gold); }
+    .mode[data-mode="Control nuevo"] { border-color: rgba(103,232,249,.3); color: var(--p1); }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; max-width: 580px; }
+    .pill { display: inline-flex; align-items: center; min-height: 29px; padding: 4px 8px; border: 1px solid currentColor; border-radius: 8px; font: 700 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .pill.p1 { color: var(--p1); background: rgba(103,232,249,.05); }
+    .pill.p2 { color: var(--p2); background: rgba(196,181,253,.05); }
+    .pill.p3 { color: var(--p3); background: rgba(253,186,116,.05); }
+    .empty-state { display: none; padding: 40px; text-align: center; color: var(--muted); }
+    .inventory { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+    details { border: 1px solid var(--line-soft); border-radius: 14px; background: rgba(14,23,42,.64); }
+    summary { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 17px; cursor: pointer; font-weight: 750; }
+    summary::marker { color: var(--accent); }
+    .inventory-list { margin: 0; padding: 0 17px 17px; list-style: none; }
+    .inventory-list li { padding: 9px 0; border-top: 1px solid var(--line-soft); }
+    .inventory-list span { display: block; color: var(--muted); font-size: 11px; }
+    .split-label { display: flex; align-items: center; gap: 8px; }
+    .process-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .tobe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .tobe-card { position: relative; overflow: hidden; padding: clamp(24px, 4vw, 38px); border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(145deg, rgba(17,28,49,.9), rgba(7,15,29,.94)); }
+    .tobe-card::after { content: attr(data-number); position: absolute; right: 18px; top: 2px; color: rgba(255,255,255,.035); font: 500 118px/1 Georgia, serif; }
+    .tobe-card > * { position: relative; z-index: 1; }
+    .tobe-card h3 { margin-top: 18px; font-size: clamp(28px, 3vw, 42px); font-weight: 500; }
+    .tobe-card > p { max-width: 600px; margin: 16px 0 24px; color: var(--muted); }
+    .tagline { color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .process-line { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 24px 0; }
+    .process-block { min-height: 86px; padding: 13px; border: 1px solid var(--line-soft); border-radius: 12px; background: rgba(255,255,255,.025); }
+    .process-block.off { opacity: .34; border-style: dashed; }
+    .process-block strong { display: block; font: 800 12px/1 ui-monospace, monospace; }
+    .process-block span { display: block; margin-top: 9px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .spec-list { display: grid; gap: 0; margin: 0; }
+    .spec { display: grid; grid-template-columns: 108px 1fr; gap: 14px; padding: 13px 0; border-top: 1px solid var(--line-soft); }
+    .spec dt { color: var(--quiet); font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .spec dd { margin: 0; color: var(--muted); font-size: 13px; }
+    .agent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+    .agent { min-height: 190px; padding: 22px; border: 1px solid var(--line-soft); border-radius: 16px; background: rgba(14,23,42,.68); }
+    .agent-id { color: var(--accent); font: 800 12px/1 ui-monospace, monospace; }
+    .agent h3 { margin-top: 18px; font: 700 18px/1.25 "Segoe UI", sans-serif; letter-spacing: 0; }
+    .agent p { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+    .hitl-band { display: grid; grid-template-columns: 180px 1fr; gap: 24px; align-items: center; margin-top: 18px; padding: 24px; border: 1px solid rgba(246,199,111,.27); border-radius: var(--radius); background: rgba(246,199,111,.045); }
+    .hitl-number { color: var(--gold); font: 500 68px/1 Georgia, serif; }
+    .hitl-number span { display: block; margin-top: 8px; color: var(--muted); font: 700 11px/1.4 "Segoe UI", sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .hitl-content p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    .architecture { display: grid; grid-template-columns: minmax(280px,.38fr) minmax(0,.62fr); gap: 18px; }
+    .compare { padding: 28px; }
+    .compare h3 { font-size: 27px; font-weight: 500; }
+    .compare-block { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line-soft); }
+    .compare-block strong { color: var(--gold); font-size: 13px; }
+    .compare-block p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .evidence { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--accent); font-size: 12px; font-weight: 700; }
+    .evidence::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .stack { display: grid; gap: 8px; }
+    .layer { display: grid; grid-template-columns: 180px 1fr; gap: 18px; align-items: center; min-height: 72px; padding: 15px 18px; border: 1px solid var(--line-soft); border-radius: 13px; background: rgba(14,23,42,.7); }
+    .layer strong { color: var(--text); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+    .layer span { color: var(--muted); font-size: 12px; }
+    .layer.highlight { border-color: rgba(74,222,128,.34); background: rgba(74,222,128,.055); }
+    .decision-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+    .decision { padding: 18px; border: 1px solid var(--line-soft); border-radius: 14px; background: rgba(255,255,255,.025); }
+    .decision code { color: var(--gold); }
+    .decision p { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .audit-note { margin-top: 18px; padding: 20px; border: 1px solid rgba(251,113,133,.28); border-radius: 14px; background: rgba(251,113,133,.045); }
+    .audit-note strong { color: #fda4af; }
+    .audit-note p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .source-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 18px; }
+    .source-file { min-height: 64px; padding: 13px 15px; border: 1px solid var(--line-soft); border-radius: 12px; text-decoration: none; background: rgba(255,255,255,.02); }
+    .source-file:hover { border-color: var(--accent); }
+    .source-file code { display: block; color: var(--text); font-size: 11px; word-break: break-word; }
+    .source-file span { color: var(--quiet); font-size: 11px; }
+    footer { padding: 40px 0 64px; border-top: 1px solid var(--line-soft); }
+    .footer-row { display: flex; justify-content: space-between; gap: 28px; color: var(--quiet); font-size: 12px; }
+    .footer-row strong { color: var(--muted); }
+    .reveal { opacity: 0; transform: translateY(10px); transition: opacity .38s ease, transform .38s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 1050px) {
+      .hero-grid, .section-head, .story-grid, .architecture { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: repeat(3, 1fr); }
+      .agent-grid { grid-template-columns: repeat(2, 1fr); }
+      .section-head { gap: 18px; }
+    }
+    @media (max-width: 760px) {
+      :root { --header-h: 68px; }
+      .brand-copy { display: none; }
+      .nav-shell { width: calc(100% - 20px); gap: 10px; }
+      .nav-links { justify-content: flex-start; mask-image: linear-gradient(90deg, transparent, black 8px, black calc(100% - 12px), transparent); }
+      .nav-links a { padding-inline: 11px; }
+      section { padding: 72px 0; }
+      .hero { min-height: auto; padding-top: 64px; }
+      .hero-grid { gap: 42px; }
+      .pulse-row, .metric-grid, .tobe-grid, .inventory, .decision-grid, .source-grid { grid-template-columns: 1fr 1fr; }
+      .metric { min-height: 126px; }
+      .process-line { grid-template-columns: 1fr; }
+      .spec { grid-template-columns: 90px 1fr; }
+      .hitl-band { grid-template-columns: 1fr; }
+      .layer { grid-template-columns: 1fr; gap: 6px; }
+      .table-wrap { overflow: visible; contain: inline-size; background: transparent; border: 0; }
+      table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
+      table { min-width: 0; }
+      thead { display: none; }
+      tbody { display: grid; gap: 10px; }
+      tbody tr { padding: 13px; border: 1px solid var(--line-soft); border-radius: 14px; background: rgba(10,17,32,.76); }
+      td { padding: 8px 9px; border: 0; }
+      td::before { display: block; margin-bottom: 5px; color: var(--quiet); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+      td:nth-child(1)::before { content: "Nodo AS-IS"; }
+      td:nth-child(2)::before { content: "Tipo"; }
+      td:nth-child(3)::before { content: "Transformación"; }
+      td:nth-child(4)::before { content: "Nodos TO-BE"; }
+      td:nth-child(5)::before { content: "Lectura de control"; }
+    }
+    @media (max-width: 520px) {
+      .shell { width: min(100% - 22px, var(--max)); }
+      .pulse-row, .metric-grid, .tobe-grid, .inventory, .agent-grid, .decision-grid, .source-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 45px; }
+      .hero-panel, .tobe-card { border-radius: 18px; }
+      .footer-row { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+    @media print {
+      :root { color-scheme: light; --bg: #fff; --surface: #fff; --card: #fff; --card-2: #f8fafc; --text: #0f172a; --muted: #334155; --quiet: #475569; --line: #94a3b8; --line-soft: #cbd5e1; }
+      body { background: #fff; }
+      body::before, .topbar, .hero-actions, .trace-toolbar, .progress { display: none !important; }
+      .hero { min-height: auto; }
+      section { padding: 36px 0; break-inside: avoid; }
+      .reveal { opacity: 1; transform: none; }
+      .table-wrap { overflow: visible; }
+      table { min-width: 0; font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <header class="topbar" aria-label="Navegación principal">
+    <div class="nav-shell">
+      <a class="brand" href="#inicio" aria-label="Ir al inicio">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span class="brand-copy"><strong>Ságale Automation Atlas</strong><span>Fase 1 · Fuente BPMN</span></span>
+      </a>
+      <nav class="nav-links" aria-label="Secciones del tutorial">
+        <a href="#problema">01 Problema</a>
+        <a href="#trazabilidad">02 Trazabilidad</a>
+        <a href="#tobe">03 TO‑BE</a>
+        <a href="#arquitectura">04 Arquitectura</a>
+        <a class="source-link" href="#fuentes">Fuentes</a>
+      </nav>
+    </div>
+    <div class="progress" aria-hidden="true"><span id="scrollProgress"></span></div>
+  </header>
+
+  <main id="contenido">
+    <section class="hero" id="inicio" aria-labelledby="hero-title">
+      <div class="shell hero-grid">
+        <div>
+          <div class="eyebrow">Proyecto integrador · Automatización inteligente</div>
+          <h1 id="hero-title">De 31.75 horas a un proceso <em>trazable</em>.</h1>
+          <p class="lede">Una guía visual para explicar cómo Ságale Abogados transforma la elaboración de una minuta de compraventa: de esperas manuales y reproceso a tres procesos orquestados, siete controles humanos verificables y cuatro agentes especializados.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#problema">Iniciar recorrido
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a class="button" href="#trazabilidad">Abrir matriz 28 → 58</a>
+          </div>
+        </div>
+        <aside class="hero-panel" aria-label="Resumen de cobertura">
+          <div class="panel-kicker">Cobertura verificada en XML</div>
+          <div class="pulse-row">
+            <div class="pulse-stat"><strong>28</strong><span>nodos AS‑IS · D3_Process</span></div>
+            <div class="pulse-stat"><strong>58</strong><span>nodos TO‑BE · P01 + P02 + P03</span></div>
+            <div class="pulse-stat"><strong>7</strong><span>tareas HITL presentes en BPMN</span></div>
+            <div class="pulse-stat"><strong>4</strong><span>agentes A0 · A1 · A2 · A3</span></div>
+          </div>
+          <div class="status-line"><span class="status-dot" aria-hidden="true"></span><span>Inventario sincronizado con <code>DIAGRAMAS/editables/</code>. Las medianas observadas no se modelan como temporizadores.</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="problema" aria-labelledby="problem-title">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><div class="section-index">01 · El problema y la línea base</div><h2 id="problem-title">Mucho ciclo. Poco trabajo efectivo.</h2></div>
+          <p class="section-intro">El AS‑IS no es sólo una secuencia de tareas: es un sistema dominado por disponibilidad humana, retornos del cliente y retrabajo. La línea base de 15 casos permite separar evidencia observada de reglas temporales reales.</p>
+        </div>
+
+        <div class="metric-grid reveal" aria-label="Indicadores de línea base">
+          <article class="metric"><span class="value">26</span><span class="unit">casos / mes</span><p>Volumen mensual de referencia.</p></article>
+          <article class="metric"><span class="value">31.75</span><span class="unit">horas medianas</span><p>Ciclo total; máximo observado: 75.00 h.</p></article>
+          <article class="metric"><span class="value">49.33</span><span class="unit">minutos</span><p>Trabajo efectivo por expediente.</p></article>
+          <article class="metric"><span class="value">2.59%</span><span class="unit">PCE</span><p>Eficiencia del ciclo de proceso.</p></article>
+          <article class="metric"><span class="value">20.0%</span><span class="unit">reproceso</span><p>Casos que vuelven a una actividad previa.</p></article>
+          <article class="metric"><span class="value">S/ 13.59</span><span class="unit">por hora</span><p>Costo de la asistente jurídica.</p></article>
+        </div>
+
+        <div class="story-grid reveal">
+          <article class="card card-pad">
+            <div class="card-title">Recorrido AS‑IS · 28 nodos</div>
+            <div class="journey" aria-label="Cinco momentos del proceso actual">
+              <div class="journey-step"><span class="number">1</span><strong>Recepción</strong><span>Solicitud y espera hasta que exista turno disponible.</span></div>
+              <div class="journey-step"><span class="number">2</span><strong>Recaudos</strong><span>Verificación, faltantes y ventana real de subsanación P5D.</span></div>
+              <div class="journey-step"><span class="number">3</span><strong>Riesgo registral</strong><span>Gravámenes, viabilidad y posible descarte.</span></div>
+              <div class="journey-step"><span class="number">4</span><strong>Minuta</strong><span>Redacción, disponibilidad del titular, revisión y corrección.</span></div>
+              <div class="journey-step"><span class="number">5</span><strong>Conformidad</strong><span>WhatsApp, PT72H, firma física y kárdex notarial.</span></div>
+            </div>
+            <div class="narration"><span class="cue">Guion</span><p>“La automatización no elimina el juicio legal. Elimina la fricción alrededor de ese juicio y conserva la intervención humana donde el BPMN la exige.”</p></div>
+          </article>
+          <aside>
+            <div class="callout"><strong>Condiciones, no cronómetros</strong><p><code>as_turno</code> espera <code>turnoDisponible</code> y <code>as_titular</code> espera <code>titularDisponible</code>. Las 4.5 h y 6.2 h son medianas observadas, no plazos fijos.</p></div>
+            <div class="callout"><strong>Decisiones basadas en eventos</strong><p><code>as_esperar_recaudos</code> compite entre respuesta y <code>P5D</code>; <code>as_esperar_cliente</code>, entre respuesta y <code>PT72H</code>.</p></div>
+            <div class="callout"><strong>Cuello de botella visible</strong><p>49.33 minutos de valor dentro de 31.75 horas de ciclo explican un PCE de sólo 2.59%.</p></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="trazabilidad" aria-labelledby="trace-title">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><div class="section-index">02 · Matriz de trazabilidad</div><h2 id="trace-title">Cada cambio tiene un ID.</h2></div>
+          <p class="section-intro">La tabla conecta los 28 nodos del AS‑IS con los 58 nodos realmente presentes en los BPMN TO‑BE. Incluye equivalencias funcionales, automatizaciones nuevas, excepciones y controles que antes no estaban explícitos.</p>
+        </div>
+
+        <div class="trace-toolbar reveal">
+          <div class="search-field">
+            <label for="traceSearch">Buscar por ID, actividad o control</label>
+            <input id="traceSearch" type="search" autocomplete="off" placeholder="Ej.: as_gravamenes, p2_legal, SHA-256…">
+          </div>
+          <div class="filter-group" aria-label="Filtrar por proceso">
+            <button class="filter" type="button" data-filter="all" aria-pressed="true">Todos</button>
+            <button class="filter" type="button" data-filter="p1" aria-pressed="false">P01 · Registro</button>
+            <button class="filter" type="button" data-filter="p2" aria-pressed="false">P02 · Análisis</button>
+            <button class="filter" type="button" data-filter="p3" aria-pressed="false">P03 · Cierre</button>
+            <button class="filter" type="button" data-filter="hitl" aria-pressed="false">Sólo HITL</button>
+          </div>
+        </div>
+        <div class="coverage-strip reveal" id="coverageStrip" aria-live="polite"></div>
+        <div class="table-wrap reveal" role="region" aria-label="Matriz de trazabilidad" tabindex="0">
+          <table>
+            <caption class="sr-only">Correspondencia de nodos AS-IS con nodos TO-BE</caption>
+            <thead><tr><th scope="col">Nodo AS‑IS</th><th scope="col">Tipo</th><th scope="col">Transformación</th><th scope="col">Nodos TO‑BE relacionados</th><th scope="col">Lectura de control</th></tr></thead>
+            <tbody id="traceBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyState">No hay coincidencias para este filtro.</div>
+        </div>
+
+        <div class="inventory reveal" id="inventory" aria-label="Inventario completo de nodos TO-BE"></div>
+      </div>
+    </section>
+
+    <section id="tobe" aria-labelledby="tobe-title">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><div class="section-index">03 · Exposición de los dos TO‑BE</div><h2 id="tobe-title">Dos niveles de ambición. Una misma verdad.</h2></div>
+          <p class="section-intro">El primer escenario automatiza el registro y la precalificación. El segundo orquesta el expediente completo, conserva memoria conversacional y conecta la decisión técnica con la responsabilidad jurídica.</p>
+        </div>
+
+        <div class="tobe-grid reveal">
+          <article class="tobe-card" data-number="1">
+            <div class="tagline">TO‑BE 1 · Automatización asistida</div>
+            <h3>RPA + precalificación documental</h3>
+            <p>Convierte la entrada en un contrato determinista, evita duplicados y entrega al equipo jurídico un expediente versionado con una primera lectura estructurada.</p>
+            <div class="process-line" aria-label="Cobertura de procesos TO-BE 1">
+              <div class="process-block"><strong style="color:var(--p1)">P01</strong><span>Registro, validación e idempotencia.</span></div>
+              <div class="process-block"><strong style="color:var(--p2)">P02</strong><span>Ingesta, PII y precalificación.</span></div>
+              <div class="process-block off"><strong style="color:var(--p3)">P03</strong><span>Queda fuera de este alcance.</span></div>
+            </div>
+            <dl class="spec-list">
+              <div class="spec"><dt>Disparador</dt><dd>HTTP POST con 10 campos y dos adjuntos.</dd></div>
+              <div class="spec"><dt>Carriles</dt><dd>n8n + A0/A1; asistente y equipo jurídico para excepciones/HITL.</dd></div>
+              <div class="spec"><dt>Desenlaces</dt><dd>201 nueva, 200 duplicada, 400 inválida; P02 viable, descartada o abandonada.</dd></div>
+              <div class="spec"><dt>Agentes</dt><dd>A0 ingesta/idempotencia y A1 calificación preliminar.</dd></div>
+              <div class="spec"><dt>Excepciones</dt><dd>P1_ERROR_SHEETS, P1_ERROR_SISTEMA, P2_ERROR_DESCARGA y P2_ERROR_IA.</dd></div>
+              <div class="spec"><dt>Control</dt><dd>SHA‑256, backoff 2/4/8 s, Pydantic/JSON y compuerta PII previa al índice.</dd></div>
+            </dl>
+          </article>
+
+          <article class="tobe-card" data-number="2">
+            <div class="tagline">TO‑BE 2 · Ecosistema multiagéntico E2E</div>
+            <h3>Del ingreso al kárdex, con memoria</h3>
+            <p>Un supervisor LangGraph conserva el estado por expediente, coordina cuatro agentes y pausa el flujo en controles humanos antes de decisiones legales, firma y archivo.</p>
+            <div class="process-line" aria-label="Cobertura de procesos TO-BE 2">
+              <div class="process-block"><strong style="color:var(--p1)">P01</strong><span>Entrada e idempotencia.</span></div>
+              <div class="process-block"><strong style="color:var(--p2)">P02</strong><span>Análisis, RAG y viabilidad.</span></div>
+              <div class="process-block"><strong style="color:var(--p3)">P03</strong><span>Minuta, firma y notaría.</span></div>
+            </div>
+            <dl class="spec-list">
+              <div class="spec"><dt>Disparador</dt><dd>Solicitud validada o reanudación de un expediente pausado.</dd></div>
+              <div class="spec"><dt>Carriles</dt><dd>Cliente, orquestador, agentes, equipo jurídico y Notaría Bracamonte.</dd></div>
+              <div class="spec"><dt>Desenlaces</dt><dd>Expediente viable/descartado/abandonado; minuta sin conformidad o kárdex obtenido.</dd></div>
+              <div class="spec"><dt>Agentes</dt><dd>A0 ingesta, A1 análisis, A2 redacción/cierre y A3 asistencia/auditoría.</dd></div>
+              <div class="spec"><dt>Excepciones</dt><dd>Errores P01/P02, JSON inválido, vencimientos P5D/PT72H y rechazo humano.</dd></div>
+              <div class="spec"><dt>Control</dt><dd>BD relacional, memoria conversacional, interrupt(), trazas BPMN y WhatsApp.</dd></div>
+            </dl>
+          </article>
+        </div>
+
+        <div class="agent-grid reveal" aria-label="Agentes del ecosistema">
+          <article class="agent"><span class="agent-id">A0</span><h3>Guardián de entrada</h3><p>Contrato, normalización, SHA‑256, Drive, versiones y compuerta de datos personales antes de indexar.</p></article>
+          <article class="agent"><span class="agent-id">A1</span><h3>Calificador registral</h3><p>RAG, faltantes, inconsistencias, gravámenes y salida tipada para la decisión preliminar.</p></article>
+          <article class="agent"><span class="agent-id">A2</span><h3>Redactor y cierre</h3><p>Borrador Word/Markdown, correcciones, WhatsApp, conformidad y preparación del ingreso notarial.</p></article>
+          <article class="agent"><span class="agent-id">A3</span><h3>Asistente y auditor</h3><p>Memoria de pedidos, respuestas con cita verificable e indicadores de P01 a P03.</p></article>
+        </div>
+
+        <div class="hitl-band reveal">
+          <div class="hitl-number">7<span>puntos HITL verificados</span></div>
+          <div class="hitl-content"><p>Los XML contienen exactamente estas tareas humanas. Cada una debe pausar y reanudar el grafo con <code>interrupt()</code>, manteniendo <code>expediente_id</code>, versión y nodo BPMN.</p><div class="pills"><span class="pill p1">p1_incidente</span><span class="pill p2">p2_revision_fallo</span><span class="pill p2">p2_legal</span><span class="pill p2">p2_subsanacion</span><span class="pill p2">p2_archivar</span><span class="pill p3">p3_revision</span><span class="pill p3">p3_firma</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="arquitectura" aria-labelledby="arch-title">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><div class="section-index">04 · Evolución de arquitectura</div><h2 id="arch-title">De automatizar tareas a gobernar decisiones.</h2></div>
+          <p class="section-intro">La evolución añade estado persistente, una capa de decisión determinista, compuertas HITL por riesgo, herramientas MCP y un bucle de calibración alimentado por las resoluciones humanas.</p>
+        </div>
+
+        <div class="architecture reveal">
+          <article class="card compare">
+            <h3>V1 → V2</h3>
+            <div class="compare-block"><strong>V1 · Automatización funcional</strong><p>Webhook, reglas RPA, Sheets/Drive y precalificación. Su objetivo principal es reducir digitación, duplicados y tiempo de preparación.</p></div>
+            <div class="compare-block"><strong>V2 · Sistema multiagéntico gobernado</strong><p>Supervisor LangGraph, memoria relacional y conversacional, A0–A3, <code>decide()</code>, HITL por riesgo, MCP, trazas y calibración.</p></div>
+            <span class="evidence">El archivo disponible se identifica internamente como 05_Arquitectura_v2</span>
+            <div class="audit-note"><strong>Observación de sincronización</strong><p>La carpeta no contiene un archivo separado <code>05_Arquitectura_v2.drawio</code>. El archivo <code>05_Arquitectura.drawio</code> tiene ID y contenido de V2. Por eso V1 se presenta como baseline conceptual, no como diagrama verificado.</p></div>
+          </article>
+
+          <div>
+            <div class="stack" aria-label="Capas de arquitectura V2">
+              <div class="layer"><strong>Portal + REST API</strong><span>Contrato de 10 campos, 201/200/400, bandeja HITL y chat RAG con citas.</span></div>
+              <div class="layer highlight"><strong>Orchestrator</strong><span>LangGraph StateGraph + checkpointer; transiciones P01 → P02 → P03 y reanudación con interrupt().</span></div>
+              <div class="layer"><strong>Decision Layer</strong><span>System 1: <code>decide()</code>, reglas deterministas, confianza y ruta auditable en menos de 50 ms.</span></div>
+              <div class="layer highlight"><strong>Risk-Based HITL</strong><span>Autoejecución segura, revisión humana en zona intermedia y escalamiento ante fallo o baja confianza.</span></div>
+              <div class="layer"><strong>Agentes A0–A3</strong><span>Ingesta, calificación, redacción/cierre y asistencia/auditoría, siempre aislados por expediente.</span></div>
+              <div class="layer"><strong>Cognitive Layer</strong><span>System 2 mediante <code>get_llm()</code>; salida Pydantic o decisión tipada, nunca texto libre operativo.</span></div>
+              <div class="layer"><strong>Knowledge + State</strong><span>RAG por <code>expediente_id</code>, versiones, solicitudes, fallidos, tareas HITL y trazas.</span></div>
+              <div class="layer"><strong>Tools + MCP</strong><span>Servidor <code>sagale-mcp</code>, privilegio mínimo, Sheets/SQLite, Drive, documentos y notificaciones.</span></div>
+              <div class="layer"><strong>Calibration Loop</strong><span>Etiquetas humanas, Brier Score, ECE, ajuste de umbrales y detección de drift.</span></div>
+            </div>
+            <div class="decision-grid" aria-label="Rutas de decisión por riesgo">
+              <div class="decision"><code>p ≥ τ_auto</code><p>Regla limpia: ejecutar y trazar.</p></div>
+              <div class="decision"><code>τ_rev ≤ p &lt; τ_auto</code><p>Zona de revisión: pausar con HITL.</p></div>
+              <div class="decision"><code>p &lt; τ_rev</code><p>Baja confianza o fallo: escalar incidente.</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="narration reveal"><span class="cue">Guion</span><p>“System 1 decide lo determinista; System 2 propone lo cognitivo; el profesional conserva la última palabra jurídica. Cada paso deja evidencia con el ID exacto del BPMN.”</p></div>
+
+        <div id="fuentes" class="card card-pad reveal" style="margin-top:18px">
+          <div class="card-title">Fuentes de verdad consultadas</div>
+          <div class="source-grid">
+            <a class="source-file" href="../DIAGRAMAS/editables/01_ASIS_minuta_reconstruido.bpmn"><code>01_ASIS_minuta_reconstruido.bpmn</code><span>D3_Process · 28 nodos</span></a>
+            <a class="source-file" href="../DIAGRAMAS/editables/02_TOBE_P01_registro.bpmn"><code>02_TOBE_P01_registro.bpmn</code><span>D4_Process · 22 nodos</span></a>
+            <a class="source-file" href="../DIAGRAMAS/editables/03_TOBE_P02_analisis.bpmn"><code>03_TOBE_P02_analisis.bpmn</code><span>D5_Process · 22 nodos</span></a>
+            <a class="source-file" href="../DIAGRAMAS/editables/04_TOBE_P03_cierre.bpmn"><code>04_TOBE_P03_cierre.bpmn</code><span>D6_Process · 14 nodos</span></a>
+            <a class="source-file" href="../DIAGRAMAS/editables/05_Arquitectura.drawio"><code>05_Arquitectura.drawio</code><span>ID interno: 05_Arquitectura_v2</span></a>
+            <a class="source-file" href="../DIAGRAMAS/editables/06_Mapa_procesos.drawio"><code>06_Mapa_procesos.drawio</code><span>P01 · P02 · P03 y capa transversal</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-row"><span><strong>Ságale Automation Atlas</strong> · Fase 1</span><span>Walter Luis Colonia Infantas · Stefano Rosel Goicochea Vargas · Joaquin Jesus Torres Avalos</span></div>
+  </footer>
+
+  <script>
+    const processes = {
+      p1: {
+        title: 'P01 · Registro e idempotencia', color: 'var(--p1)',
+        nodes: [
+          ['p1_inicio','Solicitud HTTP POST','startEvent'],['p1_validar','Validar campos y adjuntos','serviceTask'],['p1_valida','¿Válida?','exclusiveGateway'],['p1_normalizar','Normalizar los datos','serviceTask'],['p1_hash','Generar clave SHA-256','serviceTask'],['p1_consultar','Consultar clave en Google Sheets','serviceTask'],['p1_existe','¿Existe?','exclusiveGateway'],['p1_registrar','Registrar en Solicitudes','serviceTask'],['p1_201','Responder 201 Created','serviceTask'],['p1_fin_nueva','Continúa P02','endEvent'],['p1_fallidos_datos','Registrar en Cola_Fallidos','serviceTask'],['p1_400','Responder 400 y detallar errores','serviceTask'],['p1_fin_invalida','Entrada inválida','endEvent'],['p1_200','Responder 200 sin otra inserción','serviceTask'],['p1_fin_duplicada','Reenvío atendido','endEvent'],['p1_error_sheets','P1_ERROR_SHEETS','boundaryEvent'],['p1_error_sistema','P1_ERROR_SISTEMA','boundaryEvent'],['p1_reintento','Reintentar 3 veces: 2, 4 y 8 s','serviceTask'],['p1_recuperado','¿Recuperado?','exclusiveGateway'],['p1_alertar','Registrar falla y alertar','serviceTask'],['p1_incidente','Revisar incidente y recuperar solicitud','userTask · HITL'],['p1_fin_incidente','Solicitud derivada a revisión','endEvent']
+        ]
+      },
+      p2: {
+        title: 'P02 · Análisis y calificación', color: 'var(--p2)',
+        nodes: [
+          ['p2_inicio','Registro de P01','startEvent'],['p2_documentos','Obtener recaudos con A0 y compuerta PII','serviceTask'],['p2_version','Validar y registrar versión corregida','serviceTask'],['p2_agente','A1: Calificación con RAG, Gemini y decisión','serviceTask'],['p2_parser','Validar estructura de salida JSON','serviceTask'],['p2_json','¿JSON válido?','exclusiveGateway'],['p2_suficiente','¿Suficiente?','exclusiveGateway'],['p2_error_ia','P2_ERROR_IA','boundaryEvent'],['p2_error_descarga','P2_ERROR_DESCARGA','boundaryEvent'],['p2_fallo','Registrar fallo técnico o JSON inválido','serviceTask'],['p2_revision_fallo','Revisar documentos y resolver incidente','userTask · HITL'],['p2_legal','Revisar evidencia y gravámenes','userTask · HITL'],['p2_subsanar','¿Subsanar?','exclusiveGateway'],['p2_viable','¿Viable?','exclusiveGateway'],['p2_fin_viable','Continúa P03','endEvent'],['p2_fin_descartada','Operación descartada','endEvent'],['p2_subsanacion','Solicitar subsanación y observaciones','userTask · HITL'],['p2_esperar','Esperar respuesta o P5D','eventBasedGateway'],['p2_respuesta','Documentos corregidos','intermediateCatchEvent'],['p2_plazo','5 días sin respuesta (P5D)','intermediateCatchEvent'],['p2_archivar','Archivar por falta de subsanación','userTask · HITL'],['p2_fin_abandono','Archivada por falta de subsanación','endEvent']
+        ]
+      },
+      p3: {
+        title: 'P03 · Minuta y cierre', color: 'var(--p3)',
+        nodes: [
+          ['p3_inicio','P02: expediente viable','startEvent'],['p3_borrador','A2: Generar borrador Word/Markdown','serviceTask'],['p3_revision','Revisar fondo legal y cláusulas','userTask · HITL'],['p3_aprobacion','¿Aprobado?','exclusiveGateway'],['p3_corregir','A2: Subsanar observaciones','serviceTask'],['p3_enviar','A2: Enviar borrador por API/WhatsApp','serviceTask'],['p3_esperar','Esperar respuesta o PT72H','eventBasedGateway'],['p3_respuesta','Respuesta del cliente','intermediateCatchEvent'],['p3_plazo','72 h sin respuesta (PT72H)','intermediateCatchEvent'],['p3_conforme','¿Conforme?','exclusiveGateway'],['p3_fin_sin_conformidad','Archivada sin conformidad','endEvent'],['p3_firma','Firmar y sellar minuta física','userTask · HITL'],['p3_notaria','Ingresar minuta y obtener kárdex','serviceTask'],['p3_fin','Fin','endEvent']
+        ]
+      }
+    };
+
+    const rows = [
+      ['as_inicio','Solicitud de minuta recibida','startEvent','Control nuevo',['p1_inicio','p1_normalizar','p1_hash','p1_consultar','p1_existe','p1_registrar','p1_201','p1_fin_nueva','p1_200','p1_fin_duplicada'],'La entrada informal se convierte en contrato, idempotencia y respuesta HTTP.'],
+      ['as_turno','Espera de turno de atención','intermediateCatchEvent · condición','Automatizado',['p1_error_sheets','p1_error_sistema','p1_reintento','p1_recuperado','p1_alertar','p1_incidente','p1_fin_incidente','p2_inicio'],'La cola automática elimina la espera normal; sólo el incidente requiere atención.'],
+      ['as_documentos','Verificar documentación preliminar','userTask','Automatizado',['p1_validar','p2_documentos','p2_error_descarga'],'Reglas sobre 10 campos y compuerta PII antes de indexar.'],
+      ['as_completos','¿Documentos completos?','exclusiveGateway','Automatizado',['p1_valida','p1_fallidos_datos','p1_400','p1_fin_invalida','p2_suficiente'],'La validez de entrada y la suficiencia documental se separan.'],
+      ['as_solicitar','Solicitar documentos faltantes al cliente','userTask','HITL',['p2_subsanacion'],'El humano explica observaciones; la notificación puede automatizarse.'],
+      ['as_esperar_recaudos','Esperar respuesta o plazo','eventBasedGateway','Automatizado',['p2_esperar'],'Carrera real entre mensaje y temporizador P5D.'],
+      ['as_recaudos','Documentos subsanados recibidos','intermediateCatchEvent','Automatizado',['p2_respuesta','p2_version'],'Toda corrección crea y registra una versión.'],
+      ['as_plazo_recaudos','5 días sin subsanación','intermediateCatchEvent · P5D','Automatizado',['p2_plazo'],'Plazo determinista fuera del LLM.'],
+      ['as_abandono','Trámite cancelado por abandono','endEvent','HITL',['p2_archivar','p2_fin_abandono'],'El archivo es confirmado por una tarea humana antes del fin.'],
+      ['as_gravamenes','Verificar gravámenes en SUNARP','userTask','HITL',['p2_agente','p2_parser','p2_json','p2_error_ia','p2_fallo','p2_revision_fallo'],'A1 prepara evidencia tipada; los fallos vuelven a una revisión humana.'],
+      ['as_gravado','¿Predio con gravamen?','exclusiveGateway','Control nuevo',['p2_subsanar'],'La decisión se expresa como necesidad de subsanación.'],
+      ['as_viabilidad','Evaluar viabilidad legal del gravamen registral','userTask','HITL',['p2_legal'],'La valoración jurídica permanece en el equipo legal.'],
+      ['as_viable','¿Viable con cláusula de levantamiento?','exclusiveGateway','HITL',['p2_viable','p2_fin_viable'],'La evidencia humana alimenta el desenlace viable.'],
+      ['as_descartada','Compraventa descartada por riesgo registral','endEvent','HITL',['p2_fin_descartada'],'Desenlace explícito y trazable.'],
+      ['as_redactar','Redactar borrador de minuta en Word','userTask','Automatizado',['p3_inicio','p3_borrador'],'A2 genera Word/Markdown desde estado y evidencia aprobada.'],
+      ['as_titular','Espera de disponibilidad del titular','intermediateCatchEvent · condición','HITL',['p3_revision'],'La mediana de 6.2 h no se vuelve timer; interrupt() conserva la pausa.'],
+      ['as_revisar','Revisar fondo legal y cláusulas obligatorias','userTask','HITL',['p3_revision'],'Revisión obligatoria del titular.'],
+      ['as_aprobado','¿Aprobado por titular?','exclusiveGateway','HITL',['p3_aprobacion'],'Aprobación o retorno controlado a corrección.'],
+      ['as_corregir','Subsanar observaciones y erratas tipográficas','userTask','Automatizado',['p3_corregir'],'A2 aplica observaciones; el titular vuelve a revisar.'],
+      ['as_enviar','Enviar borrador preliminar al cliente por WhatsApp','userTask','Automatizado',['p3_enviar'],'API/WhatsApp con trazabilidad del envío.'],
+      ['as_esperar_cliente','Espera de retorno','eventBasedGateway','Automatizado',['p3_esperar'],'Carrera entre mensaje del cliente y PT72H.'],
+      ['as_respuesta','Respuesta recibida del cliente','intermediateCatchEvent','Automatizado',['p3_respuesta'],'Evento de mensaje correlacionado por expediente.'],
+      ['as_plazo_cliente','Vencen 72 horas','intermediateCatchEvent · PT72H','Automatizado',['p3_plazo'],'Temporizador determinista fuera del LLM.'],
+      ['as_archivada','Minuta archivada por falta de conformidad','endEvent','Automatizado',['p3_fin_sin_conformidad'],'Cierre sin conformidad como desenlace separado.'],
+      ['as_conforme','¿Cliente conforme con el texto?','exclusiveGateway','Control nuevo',['p3_conforme'],'La respuesta enruta a firma o nueva versión.'],
+      ['as_firmar','Firmar y sellar minuta física (Colegiatura CALT)','userTask','HITL',['p3_firma'],'La firma física no se automatiza y exige interrupt().'],
+      ['as_ingresar','Ingresar minuta y liquidación a Notaría de Bracamonte','userTask','Automatizado',['p3_notaria'],'A2 registra el ingreso y captura el kárdex.'],
+      ['as_fin','Minuta ingresada con kárdex notarial asignado','endEvent','Automatizado',['p3_fin'],'Fin E2E con kárdex y traza completa.']
+    ];
+
+    const nodeIndex = new Map();
+    Object.entries(processes).forEach(([process, data]) => data.nodes.forEach(node => nodeIndex.set(node[0], { process, name: node[1], type: node[2] })));
+    const hitlIds = new Set(['p1_incidente','p2_revision_fallo','p2_legal','p2_subsanacion','p2_archivar','p3_revision','p3_firma']);
+    let activeFilter = 'all';
+
+    function escapeHTML(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    }
+
+    function renderTrace() {
+      const query = document.querySelector('#traceSearch').value.trim().toLocaleLowerCase('es');
+      const body = document.querySelector('#traceBody');
+      const filtered = rows.filter(row => {
+        const targets = row[4].map(id => ({ id, ...nodeIndex.get(id) }));
+        const filterMatch = activeFilter === 'all' ||
+          (activeFilter === 'hitl' ? (row[3] === 'HITL' || targets.some(t => hitlIds.has(t.id))) : targets.some(t => t.process === activeFilter));
+        const haystack = [row[0], row[1], row[2], row[3], row[5], ...targets.flatMap(t => [t.id, t.name, t.type])].join(' ').toLocaleLowerCase('es');
+        return filterMatch && (!query || haystack.includes(query));
+      });
+
+      body.innerHTML = filtered.map(row => {
+        const targetPills = row[4].filter(id => activeFilter === 'all' || activeFilter === 'hitl' || nodeIndex.get(id).process === activeFilter).map(id => {
+          const node = nodeIndex.get(id);
+          return `<span class="pill ${node.process}" title="${escapeHTML(node.name)}">${escapeHTML(id)}</span>`;
+        }).join('');
+        return `<tr><td><span class="node-id">${escapeHTML(row[0])}</span><span class="node-name">${escapeHTML(row[1])}</span></td><td><span class="type-label">${escapeHTML(row[2])}</span></td><td><span class="mode" data-mode="${escapeHTML(row[3])}">${escapeHTML(row[3])}</span></td><td><div class="pills">${targetPills}</div></td><td><span class="node-name">${escapeHTML(row[5])}</span></td></tr>`;
+      }).join('');
+      document.querySelector('#emptyState').style.display = filtered.length ? 'none' : 'block';
+
+      const allTargets = new Set(rows.flatMap(row => row[4]));
+      const total = [...nodeIndex.keys()].length;
+      const missing = [...nodeIndex.keys()].filter(id => !allTargets.has(id));
+      document.querySelector('#coverageStrip').innerHTML = `<strong>Cobertura ${allTargets.size}/${total} nodos TO‑BE</strong><span>28/28 nodos AS‑IS trazados</span><span>22 P01 · 22 P02 · 14 P03</span><span>${missing.length ? `Faltan: ${missing.join(', ')}` : 'Sin nodos huérfanos'}</span>`;
+    }
+
+    function renderInventory() {
+      const inventory = document.querySelector('#inventory');
+      inventory.innerHTML = Object.entries(processes).map(([key, process]) => `<details><summary><span class="split-label" style="color:${process.color}"><span class="process-dot" aria-hidden="true"></span>${escapeHTML(process.title)}</span><span>${process.nodes.length} nodos</span></summary><ul class="inventory-list">${process.nodes.map(node => `<li><code>${escapeHTML(node[0])}</code><span>${escapeHTML(node[1])} · ${escapeHTML(node[2])}</span></li>`).join('')}</ul></details>`).join('');
+    }
+
+    document.querySelector('#traceSearch').addEventListener('input', renderTrace);
+    document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => {
+      activeFilter = button.dataset.filter;
+      document.querySelectorAll('.filter').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      renderTrace();
+    }));
+
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reveals = document.querySelectorAll('.reveal');
+    if (reducedMotion || !('IntersectionObserver' in window)) {
+      reveals.forEach(element => element.classList.add('visible'));
+    } else {
+      const revealObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+        if (entry.isIntersecting) { entry.target.classList.add('visible'); revealObserver.unobserve(entry.target); }
+      }), { threshold: .08 });
+      reveals.forEach(element => revealObserver.observe(element));
+    }
+
+    const sectionLinks = [...document.querySelectorAll('.nav-links a[href^="#"]')];
+    const sections = sectionLinks.map(link => document.querySelector(link.getAttribute('href'))).filter(Boolean);
+    if ('IntersectionObserver' in window) {
+      const navObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+        if (entry.isIntersecting) sectionLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
+      }), { rootMargin: '-32% 0px -60% 0px' });
+      sections.forEach(section => navObserver.observe(section));
+    }
+
+    addEventListener('scroll', () => {
+      const available = document.documentElement.scrollHeight - innerHeight;
+      document.querySelector('#scrollProgress').style.width = `${available > 0 ? (scrollY / available) * 100 : 0}%`;
+    }, { passive: true });
+
+    renderInventory();
+    renderTrace();
+    const requestedSection = new URLSearchParams(location.search).get('section');
+    const sectionTarget = requestedSection ? document.getElementById(requestedSection) : null;
+    if (sectionTarget) requestAnimationFrame(() => scrollTo(0, Math.max(0, sectionTarget.offsetTop - 96)));
+  </script>
+</body>
+</html>

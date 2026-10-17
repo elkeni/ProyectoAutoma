@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" id="D6_Definitions" targetNamespace="https://segale.example/procesos" exporter="Modelador Ságale Abogados">
+  <bpmn:message id="p3_respuesta_Message" name="Respuesta del cliente"/>
+  <bpmn:process id="D6_Process" name="04_TOBE_P03_cierre" isExecutable="false">
+    <bpmn:documentation>Subproceso P03 híbrido: Agente A2 automatiza la generación de minuta y notificaciones; Abogado Titular ejecuta revisión y firma formal (HITL); integración con Notaría Bracamonte.</bpmn:documentation>
+    <bpmn:laneSet id="D6_LaneSet">
+      <bpmn:lane id="D6_Lane_1" name="Sistema y Agente A2 · redacción y notificaciones">
+        <bpmn:flowNodeRef>p3_inicio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_borrador</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_corregir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_enviar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_esperar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_respuesta</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_plazo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_conforme</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_fin_sin_conformidad</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_notaria</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_fin</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="D6_Lane_2" name="Abogado titular · revisión y firma (HITL)">
+        <bpmn:flowNodeRef>p3_revision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_aprobacion</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>p3_firma</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="p3_inicio" name="P02: expediente viable">
+      <bpmn:outgoing>D6_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="p3_borrador" name="Agente A2: Generar borrador&#10;de minuta en Word/Markdown">
+      <bpmn:incoming>D6_Flow_1</bpmn:incoming>
+      <bpmn:incoming>D6_Flow_12</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="p3_revision" name="Revisar fondo legal&#10;y cláusulas obligatorias (HITL)">
+      <bpmn:incoming>D6_Flow_2</bpmn:incoming>
+      <bpmn:incoming>D6_Flow_5</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="p3_aprobacion" name="¿Aprobado?">
+      <bpmn:incoming>D6_Flow_3</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_4</bpmn:outgoing>
+      <bpmn:outgoing>D6_Flow_6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="p3_corregir" name="Agente A2: Subsanar observaciones&#10;y errores de transcripción">
+      <bpmn:incoming>D6_Flow_4</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="p3_enviar" name="Agente A2: Enviar borrador&#10;al cliente por API/WhatsApp">
+      <bpmn:incoming>D6_Flow_6</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:eventBasedGateway id="p3_esperar">
+      <bpmn:incoming>D6_Flow_7</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_8</bpmn:outgoing>
+      <bpmn:outgoing>D6_Flow_9</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="p3_respuesta" name="Respuesta del cliente">
+      <bpmn:incoming>D6_Flow_8</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="p3_respuesta_Def" messageRef="p3_respuesta_Message"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="p3_plazo" name="72 h sin respuesta (PT72H)">
+      <bpmn:incoming>D6_Flow_9</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_11</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="p3_plazo_Def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT72H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="p3_conforme" name="¿Conforme?">
+      <bpmn:incoming>D6_Flow_10</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_12</bpmn:outgoing>
+      <bpmn:outgoing>D6_Flow_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="p3_fin_sin_conformidad" name="Archivada sin conformidad">
+      <bpmn:incoming>D6_Flow_11</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="p3_firma" name="Firmar y sellar&#10;minuta física (HITL)">
+      <bpmn:incoming>D6_Flow_13</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_14</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="p3_notaria" name="Ingresar minuta&#10;y obtener kárdex">
+      <bpmn:incoming>D6_Flow_14</bpmn:incoming>
+      <bpmn:outgoing>D6_Flow_15</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="p3_fin" name="Fin">
+      <bpmn:incoming>D6_Flow_15</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="D6_Flow_1" sourceRef="p3_inicio" targetRef="p3_borrador"/>
+    <bpmn:sequenceFlow id="D6_Flow_2" sourceRef="p3_borrador" targetRef="p3_revision"/>
+    <bpmn:sequenceFlow id="D6_Flow_3" sourceRef="p3_revision" targetRef="p3_aprobacion"/>
+    <bpmn:sequenceFlow id="D6_Flow_4" sourceRef="p3_aprobacion" targetRef="p3_corregir" name="No"/>
+    <bpmn:sequenceFlow id="D6_Flow_5" sourceRef="p3_corregir" targetRef="p3_revision"/>
+    <bpmn:sequenceFlow id="D6_Flow_6" sourceRef="p3_aprobacion" targetRef="p3_enviar" name="Sí"/>
+    <bpmn:sequenceFlow id="D6_Flow_7" sourceRef="p3_enviar" targetRef="p3_esperar"/>
+    <bpmn:sequenceFlow id="D6_Flow_8" sourceRef="p3_esperar" targetRef="p3_respuesta"/>
+    <bpmn:sequenceFlow id="D6_Flow_9" sourceRef="p3_esperar" targetRef="p3_plazo"/>
+    <bpmn:sequenceFlow id="D6_Flow_10" sourceRef="p3_respuesta" targetRef="p3_conforme"/>
+    <bpmn:sequenceFlow id="D6_Flow_11" sourceRef="p3_plazo" targetRef="p3_fin_sin_conformidad"/>
+    <bpmn:sequenceFlow id="D6_Flow_12" sourceRef="p3_conforme" targetRef="p3_borrador" name="No: pide cambios"/>
+    <bpmn:sequenceFlow id="D6_Flow_13" sourceRef="p3_conforme" targetRef="p3_firma" name="Sí"/>
+    <bpmn:sequenceFlow id="D6_Flow_14" sourceRef="p3_firma" targetRef="p3_notaria"/>
+    <bpmn:sequenceFlow id="D6_Flow_15" sourceRef="p3_notaria" targetRef="p3_fin"/>
+  </bpmn:process>
+  <bpmn:collaboration id="D6_Collaboration">
+    <bpmn:participant id="D6_Participant_1" name="Cliente"/>
+    <bpmn:participant id="D6_Participant_2" name="Estudio Jurídico Ságale Abogados" processRef="D6_Process"/>
+    <bpmn:participant id="D6_Participant_3" name="Notaría Bracamonte"/>
+    <bpmn:messageFlow id="D6_MessageFlow_1" name="Borrador enviado al cliente" sourceRef="p3_enviar" targetRef="D6_Participant_1"/>
+    <bpmn:messageFlow id="D6_MessageFlow_2" name="Conformidad o cambios recibidos del cliente" sourceRef="D6_Participant_1" targetRef="p3_respuesta"/>
+    <bpmn:messageFlow id="D6_MessageFlow_3" name="Entrega de minuta a la notaría" sourceRef="p3_notaria" targetRef="D6_Participant_3"/>
+  </bpmn:collaboration>
+  <bpmndi:BPMNDiagram id="D6_Diagram">
+    <bpmndi:BPMNPlane id="D6_Plane" bpmnElement="D6_Collaboration">
+      <bpmndi:BPMNShape id="D6_Participant_1_di" bpmnElement="D6_Participant_1" isHorizontal="true">
+        <dc:Bounds x="64" y="191" width="1792" height="54"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D6_Participant_2_di" bpmnElement="D6_Participant_2" isHorizontal="true">
+        <dc:Bounds x="64" y="266" width="1792" height="650"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D6_Participant_3_di" bpmnElement="D6_Participant_3" isHorizontal="true">
+        <dc:Bounds x="64" y="924" width="1792" height="40"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D6_Lane_1_di" bpmnElement="D6_Lane_1" isHorizontal="true" bioc:fill="#EFF6FF">
+        <dc:Bounds x="106" y="266" width="1750" height="354"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D6_Lane_2_di" bpmnElement="D6_Lane_2" isHorizontal="true" bioc:fill="#FFF9F1">
+        <dc:Bounds x="106" y="620" width="1750" height="296"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_inicio_di" bpmnElement="p3_inicio"><dc:Bounds x="150" y="397" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_borrador_di" bpmnElement="p3_borrador" bioc:fill="#FFF2E2" bioc:stroke="#B96516"><dc:Bounds x="225" y="370" width="215" height="92"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_revision_di" bpmnElement="p3_revision" bioc:fill="#FFF2E2" bioc:stroke="#B96516"><dc:Bounds x="530" y="710" width="240" height="92"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_aprobacion_di" bpmnElement="p3_aprobacion" isMarkerVisible="true"><dc:Bounds x="825" y="730" width="52" height="52"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_corregir_di" bpmnElement="p3_corregir" bioc:fill="#FFF2E2" bioc:stroke="#B96516"><dc:Bounds x="825" y="370" width="250" height="92"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_enviar_di" bpmnElement="p3_enviar" bioc:fill="#FFF2E2" bioc:stroke="#B96516"><dc:Bounds x="1135" y="370" width="225" height="92"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_esperar_di" bpmnElement="p3_esperar"><dc:Bounds x="1410" y="390" width="52" height="52"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_respuesta_di" bpmnElement="p3_respuesta"><dc:Bounds x="1515" y="290" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_plazo_di" bpmnElement="p3_plazo"><dc:Bounds x="1515" y="520" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_conforme_di" bpmnElement="p3_conforme" isMarkerVisible="true"><dc:Bounds x="1680" y="282" width="52" height="52"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_fin_sin_conformidad_di" bpmnElement="p3_fin_sin_conformidad"><dc:Bounds x="1360" y="570" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_firma_di" bpmnElement="p3_firma" bioc:fill="#FFF2E2" bioc:stroke="#B96516"><dc:Bounds x="1680" y="710" width="165" height="92"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_notaria_di" bpmnElement="p3_notaria" bioc:fill="#FFF2E2" bioc:stroke="#B96516"><dc:Bounds x="1680" y="460" width="165" height="92"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="p3_fin_di" bpmnElement="p3_fin"><dc:Bounds x="1800" y="578" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="D6_Flow_1_di" bpmnElement="D6_Flow_1"><di:waypoint x="186" y="415"/><di:waypoint x="225" y="416"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_2_di" bpmnElement="D6_Flow_2"><di:waypoint x="332" y="462"/><di:waypoint x="332" y="655"/><di:waypoint x="650" y="655"/><di:waypoint x="650" y="710"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_3_di" bpmnElement="D6_Flow_3"><di:waypoint x="770" y="756"/><di:waypoint x="825" y="756"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_4_di" bpmnElement="D6_Flow_4"><di:waypoint x="851" y="730"/><di:waypoint x="851" y="570"/><di:waypoint x="950" y="570"/><di:waypoint x="950" y="462"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_5_di" bpmnElement="D6_Flow_5"><di:waypoint x="825" y="416"/><di:waypoint x="705" y="416"/><di:waypoint x="705" y="655"/><di:waypoint x="650" y="655"/><di:waypoint x="650" y="710"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_6_di" bpmnElement="D6_Flow_6"><di:waypoint x="877" y="756"/><di:waypoint x="1100" y="756"/><di:waypoint x="1100" y="645"/><di:waypoint x="1247" y="645"/><di:waypoint x="1247" y="462"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_7_di" bpmnElement="D6_Flow_7"><di:waypoint x="1360" y="416"/><di:waypoint x="1410" y="416"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_8_di" bpmnElement="D6_Flow_8"><di:waypoint x="1436" y="390"/><di:waypoint x="1436" y="308"/><di:waypoint x="1515" y="308"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_9_di" bpmnElement="D6_Flow_9"><di:waypoint x="1436" y="442"/><di:waypoint x="1436" y="538"/><di:waypoint x="1515" y="538"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_10_di" bpmnElement="D6_Flow_10"><di:waypoint x="1551" y="308"/><di:waypoint x="1680" y="308"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_11_di" bpmnElement="D6_Flow_11"><di:waypoint x="1533" y="556"/><di:waypoint x="1533" y="588"/><di:waypoint x="1396" y="588"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_12_di" bpmnElement="D6_Flow_12"><di:waypoint x="1706" y="282"/><di:waypoint x="1706" y="271"/><di:waypoint x="332" y="271"/><di:waypoint x="332" y="370"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_13_di" bpmnElement="D6_Flow_13"><di:waypoint x="1706" y="334"/><di:waypoint x="1706" y="350"/><di:waypoint x="1620" y="350"/><di:waypoint x="1620" y="756"/><di:waypoint x="1680" y="756"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_14_di" bpmnElement="D6_Flow_14"><di:waypoint x="1762" y="710"/><di:waypoint x="1762" y="552"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_Flow_15_di" bpmnElement="D6_Flow_15"><di:waypoint x="1845" y="506"/><di:waypoint x="1850" y="506"/><di:waypoint x="1850" y="596"/><di:waypoint x="1836" y="596"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_MessageFlow_1_di" bpmnElement="D6_MessageFlow_1"><di:waypoint x="1247" y="370"/><di:waypoint x="1247" y="245"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_MessageFlow_2_di" bpmnElement="D6_MessageFlow_2"><di:waypoint x="1566" y="245"/><di:waypoint x="1566" y="274"/><di:waypoint x="1533" y="274"/><di:waypoint x="1533" y="290"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D6_MessageFlow_3_di" bpmnElement="D6_MessageFlow_3"><di:waypoint x="1845" y="515"/><di:waypoint x="1880" y="515"/><di:waypoint x="1880" y="944"/><di:waypoint x="1856" y="944"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

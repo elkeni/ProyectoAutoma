@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sagale-mcp": {
+      "type": "http",
+      "url": "${SAGALE_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${SAGALE_MCP_TOKEN}"
+      }
+    }
+  }
+}

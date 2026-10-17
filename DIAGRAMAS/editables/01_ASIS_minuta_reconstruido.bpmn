@@ -1,0 +1,554 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" id="D3_Definitions" targetNamespace="https://segale.example/procesos" exporter="Exportación del diseño de la PPT">
+  <bpmn:message id="as_inicio_Message" name="as inicio"/>
+  <bpmn:message id="as_recaudos_Message" name="as recaudos"/>
+  <bpmn:message id="as_respuesta_Message" name="as respuesta"/>
+  <bpmn:process id="D3_Process" name="01_ASIS_minuta_reconstruido" isExecutable="false">
+    <bpmn:documentation>RECONSTRUCCIÓN a partir de la imagen AS-IS insertada en la PPT. No es el archivo fuente original. Se conservan las actividades y rutas operativas. La espera de subsanación se expresa como respuesta o plazo de cinco días, y la disponibilidad del turno/titular como condición, sin convertir las medianas observadas de 4,5 h y 6,2 h en plazos fijos. La imagen PNG conserva exactamente el original. Modelo de diseño no ejecutable: no configura credenciales ni enlaces operativos de n8n.</bpmn:documentation>
+    <bpmn:laneSet id="D3_LaneSet">
+      <bpmn:lane id="D3_Lane_1" name="Abogada asistente">
+        <bpmn:flowNodeRef>as_inicio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_turno</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_documentos</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_completos</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_solicitar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_esperar_recaudos</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_recaudos</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_plazo_recaudos</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_abandono</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_gravamenes</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_gravado</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_redactar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_titular</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_corregir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_enviar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_esperar_cliente</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_respuesta</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_plazo_cliente</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_archivada</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_conforme</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_ingresar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_fin</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="D3_Lane_2" name="Abogado titular">
+        <bpmn:flowNodeRef>as_viabilidad</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_viable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_descartada</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_revisar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_aprobado</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>as_firmar</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="as_inicio" name="Solicitud de minuta recibida">
+      <bpmn:outgoing>D3_Flow_1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="as_inicio_Def" messageRef="as_inicio_Message"/>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="as_turno" name="Espera de turno de atención">
+      <bpmn:incoming>D3_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_2</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition id="as_turno_Def">
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">turnoDisponible</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="as_documentos" name="Verificar documentación preliminar">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_2</bpmn:incoming>
+      <bpmn:incoming>D3_Flow_8</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="as_completos" name="¿Documentos completos?">
+      <bpmn:incoming>D3_Flow_3</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_4</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="as_solicitar" name="Solicitar documentos faltantes al cliente">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_5</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_6</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:eventBasedGateway id="as_esperar_recaudos" name="Esperar respuesta o plazo">
+      <bpmn:incoming>D3_Flow_6</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_7</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_9</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="as_recaudos" name="Documentos subsanados recibidos">
+      <bpmn:incoming>D3_Flow_7</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_8</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="as_recaudos_Def" messageRef="as_recaudos_Message"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="as_plazo_recaudos" name="5 días sin subsanación">
+      <bpmn:incoming>D3_Flow_9</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_10</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="as_plazo_recaudos_Def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P5D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="as_abandono" name="Trámite cancelado por abandono">
+      <bpmn:incoming>D3_Flow_10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="as_gravamenes" name="Verificar gravámenes en SUNARP">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_4</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="as_gravado" name="¿Predio con gravamen?">
+      <bpmn:incoming>D3_Flow_11</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_12</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="as_viabilidad" name="Evaluar viabilidad legal del gravamen registral">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_13</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_14</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="as_viable" name="¿Viable con cláusula de levantamiento?">
+      <bpmn:incoming>D3_Flow_14</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_15</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_16</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="as_descartada" name="Compraventa descartada por riesgo registral">
+      <bpmn:incoming>D3_Flow_15</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="as_redactar" name="Redactar borrador de minuta en Word">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_12</bpmn:incoming>
+      <bpmn:incoming>D3_Flow_16</bpmn:incoming>
+      <bpmn:incoming>D3_Flow_21</bpmn:incoming>
+      <bpmn:incoming>D3_Flow_28</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_17</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="as_titular" name="Espera de disponibilidad del titular">
+      <bpmn:incoming>D3_Flow_17</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_18</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition id="as_titular_Def">
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">titularDisponible</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="as_revisar" name="Revisar fondo legal y cláusulas obligatorias">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_18</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_19</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="as_aprobado" name="¿Aprobado por titular?">
+      <bpmn:incoming>D3_Flow_19</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_20</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_22</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="as_corregir" name="Subsanar observaciones y erratas tipográficas">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_20</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_21</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="as_enviar" name="Enviar borrador preliminar al cliente por WhatsApp">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_22</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_23</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:eventBasedGateway id="as_esperar_cliente" name="Espera de retorno">
+      <bpmn:incoming>D3_Flow_23</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_24</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_25</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="as_respuesta" name="Respuesta recibida del cliente">
+      <bpmn:incoming>D3_Flow_24</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_27</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="as_respuesta_Def" messageRef="as_respuesta_Message"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="as_plazo_cliente" name="Vencen 72 horas">
+      <bpmn:incoming>D3_Flow_25</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_26</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="as_plazo_cliente_Def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT72H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="as_archivada" name="Minuta archivada por falta de conformidad">
+      <bpmn:incoming>D3_Flow_26</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="as_conforme" name="¿Cliente conforme con el texto?">
+      <bpmn:incoming>D3_Flow_27</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_28</bpmn:outgoing>
+      <bpmn:outgoing>D3_Flow_29</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="as_firmar" name="Firmar y sellar minuta física (Colegiatura CALT)">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_29</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_30</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="as_ingresar" name="Ingresar minuta y liquidación a Notaría de Bracamonte">
+      <bpmn:documentation>Intervención humana.</bpmn:documentation>
+      <bpmn:incoming>D3_Flow_30</bpmn:incoming>
+      <bpmn:outgoing>D3_Flow_31</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="as_fin" name="Minuta ingresada con kárdex notarial asignado">
+      <bpmn:incoming>D3_Flow_31</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="D3_Flow_1" sourceRef="as_inicio" targetRef="as_turno"/>
+    <bpmn:sequenceFlow id="D3_Flow_2" sourceRef="as_turno" targetRef="as_documentos"/>
+    <bpmn:sequenceFlow id="D3_Flow_3" sourceRef="as_documentos" targetRef="as_completos"/>
+    <bpmn:sequenceFlow id="D3_Flow_4" sourceRef="as_completos" targetRef="as_gravamenes" name="Sí"/>
+    <bpmn:sequenceFlow id="D3_Flow_5" sourceRef="as_completos" targetRef="as_solicitar" name="No"/>
+    <bpmn:sequenceFlow id="D3_Flow_6" sourceRef="as_solicitar" targetRef="as_esperar_recaudos"/>
+    <bpmn:sequenceFlow id="D3_Flow_7" sourceRef="as_esperar_recaudos" targetRef="as_recaudos" name="Respuesta"/>
+    <bpmn:sequenceFlow id="D3_Flow_8" sourceRef="as_recaudos" targetRef="as_documentos"/>
+    <bpmn:sequenceFlow id="D3_Flow_9" sourceRef="as_esperar_recaudos" targetRef="as_plazo_recaudos" name="5 días"/>
+    <bpmn:sequenceFlow id="D3_Flow_10" sourceRef="as_plazo_recaudos" targetRef="as_abandono"/>
+    <bpmn:sequenceFlow id="D3_Flow_11" sourceRef="as_gravamenes" targetRef="as_gravado"/>
+    <bpmn:sequenceFlow id="D3_Flow_12" sourceRef="as_gravado" targetRef="as_redactar" name="Limpio"/>
+    <bpmn:sequenceFlow id="D3_Flow_13" sourceRef="as_gravado" targetRef="as_viabilidad" name="Con gravamen"/>
+    <bpmn:sequenceFlow id="D3_Flow_14" sourceRef="as_viabilidad" targetRef="as_viable"/>
+    <bpmn:sequenceFlow id="D3_Flow_15" sourceRef="as_viable" targetRef="as_descartada" name="No: inviable"/>
+    <bpmn:sequenceFlow id="D3_Flow_16" sourceRef="as_viable" targetRef="as_redactar" name="Sí: levantable"/>
+    <bpmn:sequenceFlow id="D3_Flow_17" sourceRef="as_redactar" targetRef="as_titular"/>
+    <bpmn:sequenceFlow id="D3_Flow_18" sourceRef="as_titular" targetRef="as_revisar"/>
+    <bpmn:sequenceFlow id="D3_Flow_19" sourceRef="as_revisar" targetRef="as_aprobado"/>
+    <bpmn:sequenceFlow id="D3_Flow_20" sourceRef="as_aprobado" targetRef="as_corregir" name="Con observaciones"/>
+    <bpmn:sequenceFlow id="D3_Flow_21" sourceRef="as_corregir" targetRef="as_redactar" name="Corregido"/>
+    <bpmn:sequenceFlow id="D3_Flow_22" sourceRef="as_aprobado" targetRef="as_enviar" name="Aprobado"/>
+    <bpmn:sequenceFlow id="D3_Flow_23" sourceRef="as_enviar" targetRef="as_esperar_cliente"/>
+    <bpmn:sequenceFlow id="D3_Flow_24" sourceRef="as_esperar_cliente" targetRef="as_respuesta"/>
+    <bpmn:sequenceFlow id="D3_Flow_25" sourceRef="as_esperar_cliente" targetRef="as_plazo_cliente" name="72 horas"/>
+    <bpmn:sequenceFlow id="D3_Flow_26" sourceRef="as_plazo_cliente" targetRef="as_archivada"/>
+    <bpmn:sequenceFlow id="D3_Flow_27" sourceRef="as_respuesta" targetRef="as_conforme"/>
+    <bpmn:sequenceFlow id="D3_Flow_28" sourceRef="as_conforme" targetRef="as_redactar" name="Pide cambios"/>
+    <bpmn:sequenceFlow id="D3_Flow_29" sourceRef="as_conforme" targetRef="as_firmar" name="Sí"/>
+    <bpmn:sequenceFlow id="D3_Flow_30" sourceRef="as_firmar" targetRef="as_ingresar"/>
+    <bpmn:sequenceFlow id="D3_Flow_31" sourceRef="as_ingresar" targetRef="as_fin"/>
+  </bpmn:process>
+  <bpmn:collaboration id="D3_Collaboration">
+    <bpmn:participant id="D3_Participant_1" name="Cliente (comprador / vendedor)"/>
+    <bpmn:participant id="D3_Participant_2" name="Estudio jurídico" processRef="D3_Process"/>
+    <bpmn:participant id="D3_Participant_3" name="Notaría Bracamonte"/>
+    <bpmn:messageFlow id="D3_MessageFlow_1" name="Solicitud, DNI y partida SUNARP" sourceRef="D3_Participant_1" targetRef="as_inicio"/>
+    <bpmn:messageFlow id="D3_MessageFlow_2" name="Solicitud de faltantes" sourceRef="as_solicitar" targetRef="D3_Participant_1"/>
+    <bpmn:messageFlow id="D3_MessageFlow_3" name="Documentos subsanados" sourceRef="D3_Participant_1" targetRef="as_recaudos"/>
+    <bpmn:messageFlow id="D3_MessageFlow_4" name="Borrador en PDF" sourceRef="as_enviar" targetRef="D3_Participant_1"/>
+    <bpmn:messageFlow id="D3_MessageFlow_5" name="Visto bueno o cambios" sourceRef="D3_Participant_1" targetRef="as_respuesta"/>
+    <bpmn:messageFlow id="D3_MessageFlow_6" name="Minuta firmada y liquidación" sourceRef="as_ingresar" targetRef="D3_Participant_3"/>
+  </bpmn:collaboration>
+  <bpmndi:BPMNDiagram id="D3_Diagram">
+    <bpmndi:BPMNPlane id="D3_Plane" bpmnElement="D3_Collaboration">
+      <bpmndi:BPMNShape id="D3_Participant_1_di" bpmnElement="D3_Participant_1" isHorizontal="true">
+        <dc:Bounds x="31" y="22" width="1986" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D3_Participant_2_di" bpmnElement="D3_Participant_2" isHorizontal="true">
+        <dc:Bounds x="31" y="138" width="1986" height="563"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D3_Participant_3_di" bpmnElement="D3_Participant_3" isHorizontal="true">
+        <dc:Bounds x="31" y="738" width="1986" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D3_Lane_1_di" bpmnElement="D3_Lane_1" isHorizontal="true" bioc:fill="#EFF6FF">
+        <dc:Bounds x="73" y="138" width="1944" height="305"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D3_Lane_2_di" bpmnElement="D3_Lane_2" isHorizontal="true" bioc:fill="#F8FAFC">
+        <dc:Bounds x="73" y="443" width="1944" height="258"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_inicio_di" bpmnElement="as_inicio">
+        <dc:Bounds x="105" y="275" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="50" y="315" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_turno_di" bpmnElement="as_turno">
+        <dc:Bounds x="177" y="275" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="122" y="315" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_documentos_di" bpmnElement="as_documentos" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="245" y="255" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_completos_di" bpmnElement="as_completos" isMarkerVisible="true">
+        <dc:Bounds x="377" y="270" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="322" y="318" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_solicitar_di" bpmnElement="as_solicitar" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="460" y="157" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_esperar_recaudos_di" bpmnElement="as_esperar_recaudos">
+        <dc:Bounds x="583" y="174" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="528" y="222" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_recaudos_di" bpmnElement="as_recaudos">
+        <dc:Bounds x="665" y="174" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="610" y="214" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_plazo_recaudos_di" bpmnElement="as_plazo_recaudos">
+        <dc:Bounds x="665" y="225" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="610" y="265" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_abandono_di" bpmnElement="as_abandono">
+        <dc:Bounds x="757" y="225" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="702" y="265" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_gravamenes_di" bpmnElement="as_gravamenes" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="460" y="255" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_gravado_di" bpmnElement="as_gravado" isMarkerVisible="true">
+        <dc:Bounds x="590" y="270" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="535" y="318" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_viabilidad_di" bpmnElement="as_viabilidad" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="567" y="488" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_viable_di" bpmnElement="as_viable" isMarkerVisible="true">
+        <dc:Bounds x="707" y="506" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="652" y="554" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_descartada_di" bpmnElement="as_descartada">
+        <dc:Bounds x="812" y="506" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="757" y="546" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_redactar_di" bpmnElement="as_redactar" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="862" y="255" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_titular_di" bpmnElement="as_titular">
+        <dc:Bounds x="989" y="275" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="934" y="315" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_revisar_di" bpmnElement="as_revisar" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="962" y="488" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_aprobado_di" bpmnElement="as_aprobado" isMarkerVisible="true">
+        <dc:Bounds x="1101" y="506" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1046" y="554" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_corregir_di" bpmnElement="as_corregir" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="1104" y="175" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_enviar_di" bpmnElement="as_enviar" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="1265" y="255" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_esperar_cliente_di" bpmnElement="as_esperar_cliente">
+        <dc:Bounds x="1407" y="270" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1352" y="318" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_respuesta_di" bpmnElement="as_respuesta">
+        <dc:Bounds x="1500" y="275" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1445" y="315" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_plazo_cliente_di" bpmnElement="as_plazo_cliente">
+        <dc:Bounds x="1500" y="175" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1445" y="215" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_archivada_di" bpmnElement="as_archivada">
+        <dc:Bounds x="1598" y="175" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1543" y="215" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_conforme_di" bpmnElement="as_conforme" isMarkerVisible="true">
+        <dc:Bounds x="1592" y="270" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1537" y="318" width="150" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_firmar_di" bpmnElement="as_firmar" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="1685" y="488" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_ingresar_di" bpmnElement="as_ingresar" bioc:fill="#FFF2E2" bioc:stroke="#B96516">
+        <dc:Bounds x="1795" y="255" width="90" height="72"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="as_fin_di" bpmnElement="as_fin">
+        <dc:Bounds x="1940" y="275" width="32" height="32"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1885" y="315" width="142" height="42"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="D3_Flow_1_di" bpmnElement="D3_Flow_1">
+        <di:waypoint x="137" y="291.0"/>
+        <di:waypoint x="177" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_2_di" bpmnElement="D3_Flow_2">
+        <di:waypoint x="209" y="291.0"/>
+        <di:waypoint x="245" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_3_di" bpmnElement="D3_Flow_3">
+        <di:waypoint x="335" y="291.0"/>
+        <di:waypoint x="377" y="290.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_4_di" bpmnElement="D3_Flow_4">
+        <di:waypoint x="417" y="290.0"/>
+        <di:waypoint x="460" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_5_di" bpmnElement="D3_Flow_5">
+        <di:waypoint x="397.0" y="270"/>
+        <di:waypoint x="397" y="193"/>
+        <di:waypoint x="460" y="193.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_6_di" bpmnElement="D3_Flow_6">
+        <di:waypoint x="550" y="193.0"/>
+        <di:waypoint x="583" y="194.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_7_di" bpmnElement="D3_Flow_7">
+        <di:waypoint x="623" y="194.0"/>
+        <di:waypoint x="665" y="190.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_8_di" bpmnElement="D3_Flow_8">
+        <di:waypoint x="681.0" y="174"/>
+        <di:waypoint x="681" y="112"/>
+        <di:waypoint x="290" y="112"/>
+        <di:waypoint x="290.0" y="255"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_9_di" bpmnElement="D3_Flow_9">
+        <di:waypoint x="603.0" y="214"/>
+        <di:waypoint x="603" y="241"/>
+        <di:waypoint x="665" y="241.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_10_di" bpmnElement="D3_Flow_10">
+        <di:waypoint x="697" y="241.0"/>
+        <di:waypoint x="757" y="241.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_11_di" bpmnElement="D3_Flow_11">
+        <di:waypoint x="550" y="291.0"/>
+        <di:waypoint x="590" y="290.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_12_di" bpmnElement="D3_Flow_12">
+        <di:waypoint x="630" y="290.0"/>
+        <di:waypoint x="862" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_13_di" bpmnElement="D3_Flow_13">
+        <di:waypoint x="610.0" y="310"/>
+        <di:waypoint x="610" y="450"/>
+        <di:waypoint x="612" y="450"/>
+        <di:waypoint x="612.0" y="488"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_14_di" bpmnElement="D3_Flow_14">
+        <di:waypoint x="657" y="524.0"/>
+        <di:waypoint x="707" y="526.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_15_di" bpmnElement="D3_Flow_15">
+        <di:waypoint x="747" y="526.0"/>
+        <di:waypoint x="812" y="522.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_16_di" bpmnElement="D3_Flow_16">
+        <di:waypoint x="727.0" y="506"/>
+        <di:waypoint x="727" y="309"/>
+        <di:waypoint x="832" y="309"/>
+        <di:waypoint x="832" y="291"/>
+        <di:waypoint x="862" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_17_di" bpmnElement="D3_Flow_17">
+        <di:waypoint x="952" y="291.0"/>
+        <di:waypoint x="989" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_18_di" bpmnElement="D3_Flow_18">
+        <di:waypoint x="1005.0" y="307"/>
+        <di:waypoint x="1005" y="450"/>
+        <di:waypoint x="1007" y="450"/>
+        <di:waypoint x="1007.0" y="488"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_19_di" bpmnElement="D3_Flow_19">
+        <di:waypoint x="1052" y="524.0"/>
+        <di:waypoint x="1101" y="526.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_20_di" bpmnElement="D3_Flow_20">
+        <di:waypoint x="1121.0" y="506"/>
+        <di:waypoint x="1121" y="450"/>
+        <di:waypoint x="1149" y="450"/>
+        <di:waypoint x="1149.0" y="247"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_21_di" bpmnElement="D3_Flow_21">
+        <di:waypoint x="1104" y="211.0"/>
+        <di:waypoint x="907" y="211"/>
+        <di:waypoint x="907.0" y="255"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_22_di" bpmnElement="D3_Flow_22">
+        <di:waypoint x="1141" y="526.0"/>
+        <di:waypoint x="1310" y="526"/>
+        <di:waypoint x="1310.0" y="327"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_23_di" bpmnElement="D3_Flow_23">
+        <di:waypoint x="1355" y="291.0"/>
+        <di:waypoint x="1407" y="290.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_24_di" bpmnElement="D3_Flow_24">
+        <di:waypoint x="1447" y="290.0"/>
+        <di:waypoint x="1500" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_25_di" bpmnElement="D3_Flow_25">
+        <di:waypoint x="1427.0" y="270"/>
+        <di:waypoint x="1427" y="191"/>
+        <di:waypoint x="1500" y="191.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_26_di" bpmnElement="D3_Flow_26">
+        <di:waypoint x="1532" y="191.0"/>
+        <di:waypoint x="1598" y="191.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_27_di" bpmnElement="D3_Flow_27">
+        <di:waypoint x="1532" y="291.0"/>
+        <di:waypoint x="1592" y="290.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_28_di" bpmnElement="D3_Flow_28">
+        <di:waypoint x="1612.0" y="270"/>
+        <di:waypoint x="1612" y="112"/>
+        <di:waypoint x="907" y="112"/>
+        <di:waypoint x="907.0" y="255"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_29_di" bpmnElement="D3_Flow_29">
+        <di:waypoint x="1612.0" y="310"/>
+        <di:waypoint x="1612" y="524"/>
+        <di:waypoint x="1685" y="524.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_30_di" bpmnElement="D3_Flow_30">
+        <di:waypoint x="1730.0" y="488"/>
+        <di:waypoint x="1730" y="400"/>
+        <di:waypoint x="1840" y="400"/>
+        <di:waypoint x="1840.0" y="327"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_Flow_31_di" bpmnElement="D3_Flow_31">
+        <di:waypoint x="1885" y="291.0"/>
+        <di:waypoint x="1940" y="291.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_MessageFlow_1_di" bpmnElement="D3_MessageFlow_1">
+        <di:waypoint x="121" y="94"/>
+        <di:waypoint x="121" y="275"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_MessageFlow_2_di" bpmnElement="D3_MessageFlow_2">
+        <di:waypoint x="505" y="157"/>
+        <di:waypoint x="505" y="94"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_MessageFlow_3_di" bpmnElement="D3_MessageFlow_3">
+        <di:waypoint x="681" y="94"/>
+        <di:waypoint x="681" y="174"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_MessageFlow_4_di" bpmnElement="D3_MessageFlow_4">
+        <di:waypoint x="1310" y="255"/>
+        <di:waypoint x="1310" y="94"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_MessageFlow_5_di" bpmnElement="D3_MessageFlow_5">
+        <di:waypoint x="1516" y="94"/>
+        <di:waypoint x="1516" y="275"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="D3_MessageFlow_6_di" bpmnElement="D3_MessageFlow_6">
+        <di:waypoint x="1840" y="327"/>
+        <di:waypoint x="1840" y="738"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

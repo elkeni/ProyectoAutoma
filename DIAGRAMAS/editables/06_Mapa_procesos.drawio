@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="06_Mapa_procesos" name="06_Mapa_procesos">
+    <mxGraphModel dx="1920" dy="1080" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1832" pageHeight="410" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#2563EB;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="66" y="30" width="520" height="245" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F8F1;strokeColor=#087F66;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="656" y="30" width="520" height="245" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2E2;strokeColor=#B96516;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1246" y="30" width="520" height="245" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="" style="edgeStyle=none;html=1;rounded=0;endArrow=block;endFill=1;strokeColor=#12243A;strokeWidth=2.4;dashed=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="586" y="152" as="sourcePoint"/>
+            <mxPoint x="656" y="152" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="6" value="" style="edgeStyle=none;html=1;rounded=0;endArrow=block;endFill=1;strokeColor=#12243A;strokeWidth=2.4;dashed=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1176" y="152" as="sourcePoint"/>
+            <mxPoint x="1246" y="152" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="7" value="P01 · Registro e Idempotencia (A0)" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=25;fontColor=#2563EB;fontStyle=1;align=left;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="45" width="476" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" value="• Contrato determinista (10 campos + adjuntos)&lt;br&gt;• Normalización, SHA-256 y consulta MCP/Sheets&lt;br&gt;• Respuestas HTTP 201 / 200 / 400 y Cola_Fallidos&lt;br&gt;• Reintentos (2, 4 y 8 s) y HITL de incidentes" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=20;fontColor=#12243A;fontStyle=0;align=left;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="95" width="476" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="9" value="P02 · Análisis y Calificación (A0 + A1)" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=25;fontColor=#087F66;fontStyle=1;align=left;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="678" y="45" width="476" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="10" value="• Ingesta Drive, Compuerta PII y versionado (A0)&lt;br&gt;• Calificación RAG + IA y salida JSON validada (A1)&lt;br&gt;• Capa de Decisión decide() con umbral de riesgo&lt;br&gt;• HITL jurídico: gravámenes SUNARP y plazo P5D" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=20;fontColor=#12243A;fontStyle=0;align=left;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="678" y="95" width="476" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="P03 · Minuta y Cierre Notarial (A2)" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=25;fontColor=#B96516;fontStyle=1;align=left;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="1268" y="45" width="476" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="• Generación de minuta Word y cláusulas (A2)&lt;br&gt;• Revisión legal obligatoria del Titular (HITL)&lt;br&gt;• Envío al cliente y control de plazo PT72H&lt;br&gt;• Firma física CALT (HITL) y kárdex en Notaría" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=20;fontColor=#12243A;fontStyle=0;align=left;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="1268" y="95" width="476" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="13" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3EEFF;strokeColor=#7054A5;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="66" y="300" width="1700" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="14" value="CAPA TRANSVERSAL · Orquestador LangGraph + Servidor MCP Ságale + Agente A3 (Asistente Conversacional RAG con citación verificable y trazabilidad)" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;strokeColor=none;fillColor=none;fontFamily=Inter;fontSize=21;fontColor=#7054A5;fontStyle=1;align=center;verticalAlign=middle;spacing=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="315" width="1656" height="50" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

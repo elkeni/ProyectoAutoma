@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sagale-automatizacion-inteligente"
+version = "0.3.0"
+description = "Automatización gobernada del proceso de minuta notarial de Ságale Abogados"
+readme = "LEEME_entorno.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "langchain-core>=0.3,<2",
+  "langchain-google-genai>=4,<5",
+  "langchain-ollama>=1,<2",
+  "langgraph>=0.2,<2",
+  "mcp>=1.2,<2",
+  "pydantic>=2.7,<3",
+  "python-docx>=1.1,<2",
+  "uvicorn>=0.30,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.10,<2",
+  "pytest>=8,<10",
+  "ruff>=0.8,<1",
+]
+
+[project.scripts]
+sagale-mcp = "mcp_server.servidor_mcp:main"
+sagale-web = "web.app:main"
+
+[tool.setuptools]
+py-modules = []
+
+[tool.setuptools.packages.find]
+include = ["agentes*", "decision*", "ingesta*", "mcp_server*", "nucleo*", "rpa*", "web*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["DIAGRAMAS", "docs", "n8n_workflows"]
+
+[tool.ruff.lint]
+select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+exclude = "(?x)(^DIAGRAMAS/|^docs/|^n8n_workflows/)"
+
+# Registro normativo: agentes y CI deben ejecutar estos valores literalmente.
+[tool.sagale.commands]
+setup = 'python -m pip install -e ".[dev]"'
+phase1 = "python scripts/validar_fase1.py"
+test = "python -m pytest -q"
+lint = "python -m ruff check ."
+format_check = "python -m ruff format --check ."
+types = "python -m mypy nucleo rpa ingesta decision mcp_server agentes web tests"
+syntax = "python -m compileall -q nucleo rpa ingesta decision mcp_server agentes web tests"
+ui_demo = "python scripts/servidor_pruebas_web.py"
+github_access = "python scripts/verificar_acceso_github.py"
+github_login = "git credential-manager github login --username elkeni --device --no-ui"
+git_init = "git init -b main"
+git_remote = "git remote add origin https://elkeni@github.com/elkeni/ProyectoAutoma.git"
+git_push = "git push -u origin main"
+deploy_setup = "python -m pip install -e ."
+deploy_start = 'python -m uvicorn web.app:app --host 0.0.0.0 --port $PORT --workers 1'
+git_stage = "git add ."
+git_commit = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Publicar demo de Sagale Abogados y configuracion de despliegue"'
+publication_check = "python scripts/verificar_publicacion.py"

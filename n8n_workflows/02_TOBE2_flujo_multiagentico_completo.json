@@ -1,0 +1,3805 @@
+{
+  "name": "02_TOBE2_flujo_multiagentico_completo",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## TO-BE 2 · Ecosistema multiagéntico E2E\n\n**Fuente de verdad:** BPMN D4/P01 + D5/P02 + D6/P03.\n\n- Orquestador LangGraph y agentes A0, A1, A2, A3.\n- PostgreSQL: Solicitudes, Cola_Fallidos, Versiones_Recaudos, Tareas_HITL, Trazas y conversaciones.\n- Memoria aislada por expediente_id.\n- HITL durable y avisos WhatsApp.\n- Excepciones P1/P2, backoff 2/4/8 s, P5D y PT72H deterministas.\n\nAntes de activar, configure credencial PostgreSQL y variables de entorno indicadas en la nota de configuración.",
+        "width": 720,
+        "height": 520,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1280,
+        -360
+      ],
+      "id": "b0c0a28d-d648-43ff-bc03-c1ffda045491",
+      "name": "Guía · TO-BE 2 · Ecosistema multiagéntico E2E"
+    },
+    {
+      "parameters": {
+        "content": "## Configuración sin secretos\n\nVariables de entorno usadas:\n- `SHEETS_ADAPTER_URL`\n- `DRIVE_ADAPTER_URL`\n- `AGENT_RUNTIME_URL`\n- `ALERTS_API_URL`\n- `SAGALE_INTERNAL_API_KEY`\n- `WHATSAPP_API_URL`, `WHATSAPP_TOKEN`\n- `WHATSAPP_HITL_TO`, `WHATSAPP_TITULAR_TO`\n- `NOTARIA_ADAPTER_URL` (TO-BE 2)\n\nPostgreSQL (TO-BE 2): asigne una credencial desde n8n a cada nodo BD; el JSON no exporta IDs ni claves.\n\nContratos de adaptadores: respuesta lookup `{exists:boolean}`; A1 devuelve `CalificacionPreliminarJSON`; callbacks HITL/cliente usan POST JSON.",
+        "width": 720,
+        "height": 520,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1280,
+        220
+      ],
+      "id": "3593a7f3-3bd5-4a6d-9292-a22643209b18",
+      "name": "Configuración · Variables y contratos"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sagale/tobe2/expedientes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -520,
+        40
+      ],
+      "id": "7e25df38-44ef-4820-bee8-d7124173a69f",
+      "name": "p1_inicio · Solicitud HTTP POST",
+      "notes": "BPMN_ID=p1_inicio | PROCESS=D4_Process | Solicitud HTTP POST; responde mediante nodos p1_201/p1_200/p1_400.",
+      "notesInFlow": true,
+      "webhookId": "745ede94-7b3a-4cc4-9eb9-d26cddeb04e8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $json.body ?? $json;\nconst required = ['solicitante','contacto','tipo_operacion','dni_vendedor','dni_comprador','partida_registral','valor_comercial','forma_pago','adj_dni','adj_partida'];\nconst errors = [];\nfor (const field of required) {\n  const value = source[field];\n  if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {\n    errors.push({ field, code: 'REQUIRED', message: 'Campo obligatorio ausente' });\n  }\n}\nconst digits = (value) => String(value ?? '').replace(/\\D/g, '');\nif (source.dni_vendedor !== undefined && !/^\\d{8}$/.test(digits(source.dni_vendedor))) {\n  errors.push({ field: 'dni_vendedor', code: 'FORMAT', message: 'Debe contener 8 dígitos' });\n}\nif (source.dni_comprador !== undefined && !/^\\d{8}$/.test(digits(source.dni_comprador))) {\n  errors.push({ field: 'dni_comprador', code: 'FORMAT', message: 'Debe contener 8 dígitos' });\n}\nif (source.valor_comercial !== undefined && !(Number(source.valor_comercial) > 0)) {\n  errors.push({ field: 'valor_comercial', code: 'RANGE', message: 'Debe ser mayor que cero' });\n}\nif (source.partida_registral !== undefined && !/^[A-Za-z0-9-]{4,30}$/.test(String(source.partida_registral).trim())) {\n  errors.push({ field: 'partida_registral', code: 'FORMAT', message: 'Formato de partida inválido' });\n}\nreturn [{ json: { ...source, valida: errors.length === 0, errores: errors, contrato_version: 'P01.v1', recibido_en: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        40
+      ],
+      "id": "2f455a5e-2680-4146-8e21-64fc74394e03",
+      "name": "p1_validar · 10 campos",
+      "notes": "BPMN_ID=p1_validar | PROCESS=D4_Process | Validación determinista del contrato de entrada de 10 campos; no usa LLM.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be421d24-7af0-4ca3-bea5-39ad6c0fabf5",
+              "leftValue": "={{ $json.valida === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -40,
+        40
+      ],
+      "id": "0ff05fda-5820-47c4-ab50-c9e32a67a4c3",
+      "name": "p1_valida · ¿Válida?",
+      "notes": "BPMN_ID=p1_valida | PROCESS=D4_Process | Compuerta exclusiva ¿Válida?; true=Sí, false=No.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const clean = (value) => String(value ?? '').trim().replace(/\\s+/g, ' ');\nconst digits = (value) => String(value ?? '').replace(/\\D/g, '');\nreturn [{ json: {\n  ...$json,\n  solicitante: clean($json.solicitante),\n  contacto: clean($json.contacto),\n  tipo_operacion: clean($json.tipo_operacion).toLowerCase(),\n  dni_vendedor: digits($json.dni_vendedor),\n  dni_comprador: digits($json.dni_comprador),\n  partida_registral: clean($json.partida_registral).toUpperCase(),\n  valor_comercial: Number($json.valor_comercial),\n  forma_pago: clean($json.forma_pago).toLowerCase(),\n  normalizado_en: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        -80
+      ],
+      "id": "f70f6deb-d18f-4ec0-adfd-ccb62d657c5b",
+      "name": "p1_normalizar · Reglas RPA",
+      "notes": "BPMN_ID=p1_normalizar | PROCESS=D4_Process | Normalización determinista previa a la clave de idempotencia.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "type": "SHA256",
+        "value": "={{ $json.partida_registral + $json.dni_vendedor + $json.dni_comprador + $json.tipo_operacion }}",
+        "dataPropertyName": "idempotency_key",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -80
+      ],
+      "id": "d124ba38-c495-4126-98eb-f8dcc4c9e4e1",
+      "name": "p1_hash · SHA-256",
+      "notes": "BPMN_ID=p1_hash | PROCESS=D4_Process | SHA-256(partida_registral + dni_vendedor + dni_comprador + tipo_operacion).",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = $json.idempotency_key ?? $json.data;\nif (!key || !/^[a-f0-9]{64}$/i.test(String(key))) throw new Error('No se generó una clave SHA-256 válida');\nreturn [{ json: { ...$json, idempotency_key: String(key).toLowerCase(), expediente_id: $json.expediente_id ?? ('EXP-' + String(key).slice(0, 16).toUpperCase()) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        -80
+      ],
+      "id": "f8f9a4bd-58a2-4b7d-bf23-6b8aac07e96c",
+      "name": "Impl · Contexto aislado por expediente_id",
+      "notes": "Implementación n8n: materializa expediente_id estable a partir del hash; mantiene aislamiento por expediente.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH expediente AS (\n  INSERT INTO solicitudes (expediente_id, idempotency_key, estado, payload, created_at, updated_at)\n  VALUES ($1, $2, 'P01_RECIBIDA', $3::jsonb, NOW(), NOW())\n  ON CONFLICT (idempotency_key) DO UPDATE SET updated_at = NOW()\n  RETURNING expediente_id\n), pedido AS (\n  INSERT INTO conversaciones (expediente_id, rol, tipo, contenido, created_at)\n  SELECT $1, 'cliente', 'solicitud_inicial', $3::jsonb, NOW()\n  WHERE NOT EXISTS (\n    SELECT 1 FROM conversaciones\n    WHERE expediente_id = $1 AND tipo = 'solicitud_inicial'\n  )\n)\nSELECT $1::text AS expediente_id, $2::text AS idempotency_key;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, JSON.stringify({ solicitante: $('Impl · Contexto aislado por expediente_id').first().json.solicitante, contacto: $('Impl · Contexto aislado por expediente_id').first().json.contacto, tipo_operacion: $('Impl · Contexto aislado por expediente_id').first().json.tipo_operacion, partida_registral: $('Impl · Contexto aislado por expediente_id').first().json.partida_registral, forma_pago: $('Impl · Contexto aislado por expediente_id').first().json.forma_pago })] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        920,
+        -80
+      ],
+      "id": "b51da0d1-cd0c-45b4-903e-a2a83f6af02d",
+      "name": "BD · Solicitud + pedido conversacional",
+      "notes": "BD RELACIONAL: upsert de Solicitudes y registro idempotente del pedido del cliente en Memoria Conversacional.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT $1::text AS expediente_id,\n       COALESCE((\n         SELECT jsonb_agg(x ORDER BY x.created_at)\n         FROM (\n           SELECT rol, tipo, contenido, created_at\n           FROM conversaciones\n           WHERE expediente_id = $1\n           ORDER BY created_at DESC\n           LIMIT 20\n         ) x\n       ), '[]'::jsonb) AS memoria_conversacional;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1160,
+        -80
+      ],
+      "id": "cadac02f-4bbd-4595-b4a4-fc8ef033b976",
+      "name": "Memoria · Cargar pedidos del cliente",
+      "notes": "MEMORIA CONVERSACIONAL: últimos 20 pedidos/interacciones, filtrados estrictamente por expediente_id.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a3/context' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A3', tarea: 'resumir_memoria_con_citas', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, memoria: $json.memoria_conversacional ?? [], aislamiento: 'expediente_id', requiere_citas: true })) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        -80
+      ],
+      "id": "b092f221-74e6-4f59-baa7-10becc3f23d4",
+      "name": "A3 · Contexto conversacional y citas",
+      "notes": "AGENTE A3 · Asistente y Auditoría RAG: resume pedidos previos y exige citas verificables; fallo no bloqueante.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/orchestrator/dispatch' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ proceso: 'P01', siguiente: 'P02', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_node: 'p1_consultar', estado_tipado: $('Impl · Contexto aislado por expediente_id').first().json, contexto_a3: $json, hitl: false })) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1640,
+        -80
+      ],
+      "id": "4064097f-f46a-4cff-863e-3b75510c5397",
+      "name": "Orquestador · Despachar P01",
+      "notes": "ORQUESTADOR LangGraph: gobierna P01→P02→P03 con estado tipado y checkpointer; sin secretos embebidos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a0/invoke' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A0', proceso: 'P01', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, contrato: $('Impl · Contexto aislado por expediente_id').first().json, reglas: ['10_campos','normalizacion','sha256','idempotencia'], salida_tipificada: true })) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1880,
+        -80
+      ],
+      "id": "d915142d-f89b-4e80-9eed-05c5b91e9f31",
+      "name": "A0 · Ingesta e idempotencia P01",
+      "notes": "AGENTE A0 · Ingesta transversal e idempotencia. La decisión final sigue siendo determinista.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SHEETS_ADAPTER_URL + '/solicitudes/lookup' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, idempotency_key: $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, sheet: 'Solicitudes' })) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2120,
+        -80
+      ],
+      "id": "adc019e5-cd97-4322-ae7c-bd7a19245814",
+      "name": "p1_consultar · Google Sheets",
+      "notes": "BPMN_ID=p1_consultar | PROCESS=D4_Process | Consulta de la clave en Google Sheets mediante adaptador; error → P1_ERROR_SHEETS.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9017c36e-9de1-478b-a96c-085e90f3530d",
+              "leftValue": "={{ $json.exists === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2360,
+        -80
+      ],
+      "id": "e035edb6-be2f-446a-9a21-9612b5d3c52e",
+      "name": "p1_existe · ¿Existe?",
+      "notes": "BPMN_ID=p1_existe | PROCESS=D4_Process | Compuerta exclusiva ¿Existe?; true=Sí, false=No.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SHEETS_ADAPTER_URL + '/solicitudes' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ ...$('Impl · Contexto aislado por expediente_id').first().json, sheet: 'Solicitudes', write_mode: 'append_if_absent' })) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        40
+      ],
+      "id": "a6f00bed-558b-4c8c-8fb5-8dbd4c0b9aaf",
+      "name": "p1_registrar · Solicitudes",
+      "notes": "BPMN_ID=p1_registrar | PROCESS=D4_Process | Registrar solicitud nueva; error → P1_ERROR_SISTEMA.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE solicitudes\nSET estado = 'P01_REGISTRADA', updated_at = NOW()\nWHERE expediente_id = $1;\nINSERT INTO trazas (expediente_id, bpmn_id, evento, payload, created_at)\nVALUES ($1, 'p1_registrar', '201_CREATED', jsonb_build_object('idempotency_key', $2), NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2840,
+        40
+      ],
+      "id": "2bf562dd-ff88-4d74-82e4-084cf41a75e7",
+      "name": "BD · Confirmar P01 y traza",
+      "notes": "BD RELACIONAL: confirma estado P01_REGISTRADA y registra traza por ID BPMN.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify(({ status: 201, message: 'Created', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, idempotency_key: $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, siguiente_proceso: 'P02' })) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3080,
+        40
+      ],
+      "id": "4e1fcc6f-9f86-4d66-acb6-2438f33dce88",
+      "name": "p1_201 · 201 Created",
+      "notes": "BPMN_ID=p1_201 | PROCESS=D4_Process | Responder 201 Created; la ejecución continúa asíncronamente hacia P02.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3320,
+        40
+      ],
+      "id": "64b9ce4d-32b7-4c9f-8c10-ae84f61e5922",
+      "name": "p1_fin_nueva · Continúa P02",
+      "notes": "BPMN_ID=p1_fin_nueva | PROCESS=D4_Process | Fin P01 para solicitud nueva; continúa P02.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify(({ status: 200, message: 'OK: reenvío ya atendido', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, idempotency_key: $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, duplicated: true })) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2600,
+        -220
+      ],
+      "id": "9910d8a3-f5af-41b8-b962-1c529052ba4a",
+      "name": "p1_200 · 200 OK",
+      "notes": "BPMN_ID=p1_200 | PROCESS=D4_Process | Responder 200 OK sin otra inserción.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2840,
+        -220
+      ],
+      "id": "12ab664b-41b1-43e9-a8cb-319f9dd098cd",
+      "name": "p1_fin_duplicada · Reenvío atendido",
+      "notes": "BPMN_ID=p1_fin_duplicada | PROCESS=D4_Process | Reenvío atendido sin duplicar datos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO cola_fallidos (expediente_id, error_code, detalle, payload, created_at)\nVALUES (NULL, 'P1_DATOS_INVALIDOS', $1::jsonb, $2::jsonb, NOW());\nSELECT $1::jsonb AS errores;",
+        "options": {
+          "queryReplacement": "={{ [JSON.stringify($json.errores ?? []), JSON.stringify({ contrato_version: $json.contrato_version, recibido_en: $json.recibido_en })] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        200,
+        300
+      ],
+      "id": "2c2fc0da-88e1-484b-9eb9-87e091d2ef68",
+      "name": "p1_fallidos_datos · Cola_Fallidos",
+      "notes": "BPMN_ID=p1_fallidos_datos | PROCESS=D4_Process | Registrar entrada inválida en Cola_Fallidos sin persistir PII innecesaria.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify(({ status: 400, message: 'Bad Request', errores: $('p1_validar · 10 campos').first().json.errores ?? [] })) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        440,
+        300
+      ],
+      "id": "81fe7137-6c64-49d9-a571-830632fce9f5",
+      "name": "p1_400 · 400 Bad Request",
+      "notes": "BPMN_ID=p1_400 | PROCESS=D4_Process | Responder 400 Bad Request y detallar errores deterministas.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "id": "dd5c3b2e-90bd-4b0e-ae6c-f4f32bf5f9f0",
+      "name": "p1_fin_invalida · Entrada inválida",
+      "notes": "BPMN_ID=p1_fin_invalida | PROCESS=D4_Process | Fin por entrada inválida.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Impl · Contexto aislado por expediente_id').first().json;\nreturn [{ json: { ...base, error_code: 'P1_ERROR_SHEETS', error_detail: $json.error?.message ?? $json.message ?? 'Fallo de consulta', failed_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        500
+      ],
+      "id": "f2c46912-8b08-4af1-b772-d963f88f0b77",
+      "name": "p1_error_sheets · P1_ERROR_SHEETS",
+      "notes": "BPMN_ID=p1_error_sheets | PROCESS=D4_Process | Evento de borde P1_ERROR_SHEETS conectado a la salida de error del HTTP Request.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, retry_policy_seconds: [2,4,8], retry_attempt: 1, retry_started_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2360,
+        500
+      ],
+      "id": "844ec158-289b-4689-b25f-da7d3148d9fb",
+      "name": "p1_reintento · Backoff 2/4/8 s",
+      "notes": "BPMN_ID=p1_reintento | PROCESS=D4_Process | Inicializa exactamente 3 reintentos con backoff determinista 2, 4 y 8 segundos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        500
+      ],
+      "id": "2dfd2212-07c2-4bbb-a73b-cf403e12fad3",
+      "name": "Impl · Esperar 2 s",
+      "notes": "Backoff determinista: espera 2 segundos antes del reintento 1/3.",
+      "notesInFlow": true,
+      "webhookId": "e979b0a2-8b15-46db-bf1f-7eb4e7365031"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SHEETS_ADAPTER_URL + '/solicitudes/lookup' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, idempotency_key: $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, retry_attempt: 1 })) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2840,
+        500
+      ],
+      "id": "753f9e45-ae92-4ccf-a77b-486a8308f00b",
+      "name": "Impl · Reintento Sheets 1 de 3",
+      "notes": "Reintento Sheets 1/3 después de 2 s.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 4,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3080,
+        620
+      ],
+      "id": "c8c4bdc9-b84e-4093-a6db-1df0c83df20c",
+      "name": "Impl · Esperar 4 s",
+      "notes": "Backoff determinista: espera 4 segundos antes del reintento 2/3.",
+      "notesInFlow": true,
+      "webhookId": "5d4083b9-0117-4d4f-beb5-f5dba60fdb07"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SHEETS_ADAPTER_URL + '/solicitudes/lookup' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, idempotency_key: $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, retry_attempt: 2 })) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3320,
+        620
+      ],
+      "id": "0ad7add0-d1ae-465b-b9a6-af31e58398ec",
+      "name": "Impl · Reintento Sheets 2 de 3",
+      "notes": "Reintento Sheets 2/3 después de 4 s.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 8,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3560,
+        740
+      ],
+      "id": "eafccbaa-46c3-4195-b370-140c0a49bc4b",
+      "name": "Impl · Esperar 8 s",
+      "notes": "Backoff determinista: espera 8 segundos antes del reintento 3/3.",
+      "notesInFlow": true,
+      "webhookId": "de4df5b3-58ac-4d14-ae5a-6eb2e537b622"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SHEETS_ADAPTER_URL + '/solicitudes/lookup' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, idempotency_key: $('Impl · Contexto aislado por expediente_id').first().json.idempotency_key, retry_attempt: 3 })) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        740
+      ],
+      "id": "39df5b45-312e-4471-8312-e1a00a8d80d6",
+      "name": "Impl · Reintento Sheets 3 de 3",
+      "notes": "Reintento Sheets 3/3 después de 8 s.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Impl · Contexto aislado por expediente_id').first().json, recovered: true, retry_response: $json, recovered_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4040,
+        500
+      ],
+      "id": "1df393ca-e549-4ad3-bac5-f5dbb6b8a721",
+      "name": "Impl · Marcar recuperación",
+      "notes": "Consolida cualquier reintento exitoso antes de la compuerta BPMN p1_recuperado.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Impl · Contexto aislado por expediente_id').first().json, recovered: false, error_code: 'P1_ERROR_SHEETS', retries_exhausted: 3, backoff_seconds: [2,4,8] } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4040,
+        740
+      ],
+      "id": "a709b530-128a-4028-9399-7ba3d0150f34",
+      "name": "Impl · Reintentos agotados",
+      "notes": "Marca agotamiento tras exactamente tres reintentos; no reinicia el contador.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "478fc21e-f4f0-4b07-9361-17c183fe4bf5",
+              "leftValue": "={{ $json.recovered === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4280,
+        620
+      ],
+      "id": "5314017c-d7cc-40de-9071-7e4b027f705e",
+      "name": "p1_recuperado · ¿Recuperado?",
+      "notes": "BPMN_ID=p1_recuperado | PROCESS=D4_Process | Compuerta ¿Recuperado?; true vuelve a p1_consultar, false escala.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Impl · Contexto aislado por expediente_id').first().json, error_code: 'P1_ERROR_SISTEMA', error_detail: $json.error?.message ?? $json.message ?? 'Fallo al registrar', failed_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        880
+      ],
+      "id": "5f1a66a2-5cda-418d-bdd5-f340295e3741",
+      "name": "p1_error_sistema · P1_ERROR_SISTEMA",
+      "notes": "BPMN_ID=p1_error_sistema | PROCESS=D4_Process | Evento de borde P1_ERROR_SISTEMA conectado a la salida de error de p1_registrar.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id, bpmn_id, estado, motivo, resume_url, created_at)\nVALUES ($1, 'p1_incidente', 'PENDIENTE', $2, $3, NOW());\nSELECT $1::text AS expediente_id, 'p1_incidente'::text AS bpmn_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $json.error_code ?? 'P1_ERROR_SISTEMA', $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4520,
+        880
+      ],
+      "id": "ed4a7dfb-afa5-4a16-87d3-ee25562f783b",
+      "name": "BD · Crear HITL p1_incidente",
+      "notes": "BD RELACIONAL: crea tarea HITL p1_incidente antes de notificar al responsable.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_HITL_TO, type: 'text', text: { body: 'Incidente P01 del expediente ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + '. Revisar y reanudar: ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p1_incidente', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4760,
+        880
+      ],
+      "id": "73e2d6ca-b688-40da-bb04-260c9ff9e284",
+      "name": "p1_alertar · WhatsApp responsable",
+      "notes": "BPMN_ID=p1_alertar | PROCESS=D4_Process | Registrar falla y alertar al responsable incluyendo URL de reanudación HITL.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p1-incidente"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5000,
+        880
+      ],
+      "id": "9f5a97e4-38f8-474a-9720-e6863abc15af",
+      "name": "p1_incidente · HITL",
+      "notes": "BPMN_ID=p1_incidente | PROCESS=D4_Process | HITL: pausa durable hasta revisión y recuperación humana del incidente.",
+      "notesInFlow": true,
+      "webhookId": "00653e80-3ea2-4409-b9ce-322b725f3a3f"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl\nSET estado = 'RESUELTA', decision = $2::jsonb, resolved_at = NOW()\nWHERE expediente_id = $1 AND bpmn_id = 'p1_incidente' AND estado = 'PENDIENTE';\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5240,
+        800
+      ],
+      "id": "f4fb081a-ceef-4f94-8d6d-6cbb47ce4565",
+      "name": "BD · Cerrar HITL p1_incidente",
+      "notes": "BD RELACIONAL: cierra tarea HITL p1_incidente y conserva decisión humana auditable.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        5240,
+        960
+      ],
+      "id": "8b85daec-b9b6-4e95-9631-384623931814",
+      "name": "p1_fin_incidente · Derivada a revisión",
+      "notes": "BPMN_ID=p1_fin_incidente | PROCESS=D4_Process | Solicitud derivada a revisión; fin de esta rama.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3560,
+        1160
+      ],
+      "id": "d56b8f72-6fc5-4739-8ce4-23e78b8dddf9",
+      "name": "p2_inicio · Registro de P01",
+      "notes": "BPMN_ID=p2_inicio | PROCESS=D5_Process | Inicio P02 desde el registro exitoso de P01.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/orchestrator/dispatch' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ proceso: 'P02', siguiente: 'P03', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_node: 'p2_documentos', estado_tipado: $('Impl · Contexto aislado por expediente_id').first().json, hitl_nodes: ['p2_revision_fallo','p2_legal','p2_subsanacion','p2_archivar'] })) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        1160
+      ],
+      "id": "07cefa03-1d61-4c7a-a6a8-47f7e52272e8",
+      "name": "Orquestador · Despachar P02",
+      "notes": "ORQUESTADOR LangGraph: despacha P02 y conserva checkpointer aislado por expediente_id.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a0/ingest' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A0', proceso: 'P02', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, adjuntos: { dni: $('Impl · Contexto aislado por expediente_id').first().json.adj_dni, partida: $('Impl · Contexto aislado por expediente_id').first().json.adj_partida }, origen: 'Google Drive', pii_gate: { ley: '29733', antes_de_indexar: true, estrategia: 'bloquear_o_enmascarar', aislamiento: 'expediente_id' } })) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4040,
+        1160
+      ],
+      "id": "42de031c-4dbe-4079-8a53-ce69cd9948c6",
+      "name": "p2_documentos · A0 + Compuerta PII",
+      "notes": "BPMN_ID=p2_documentos | PROCESS=D5_Process | A0 obtiene recaudos de Drive y ejecuta compuerta PII antes de indexar; error → P2_ERROR_DESCARGA.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO versiones_recaudos (expediente_id, version, origen, metadata, created_at)\nVALUES ($1, 1, 'Google Drive', $2::jsonb, NOW())\nON CONFLICT (expediente_id, version) DO NOTHING;\nINSERT INTO trazas (expediente_id, bpmn_id, evento, payload, created_at)\nVALUES ($1, 'p2_documentos', 'PII_GATE_OK', jsonb_build_object('ley','29733'), NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify({ documentos: $json.documentos ?? [], pii_gate: $json.pii_gate ?? 'ok' })] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4280,
+        1160
+      ],
+      "id": "722d8c65-9063-4932-aa37-e5a0312a28a7",
+      "name": "BD · Versión inicial + traza PII",
+      "notes": "BD RELACIONAL: registra versión inicial y traza de la compuerta PII.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a1/invoke' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A1', nombre: 'Agente_Calificador_Preliminar', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_node: 'p2_agente', documentos: $('p2_documentos · A0 + Compuerta PII').first().json, estrategia: 'RAG + Capa de Decisión', salida_requerida: { suficiente: 'boolean', confianza: 'number_0_1', hallazgos: 'array', recomendacion: 'string', evidencias: 'array_con_citas' } })) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4520,
+        1160
+      ],
+      "id": "33be7b42-2042-46ac-b35b-7a194769a4bd",
+      "name": "p2_agente · A1 Calificador Preliminar",
+      "notes": "BPMN_ID=p2_agente | PROCESS=D5_Process | Agente A1 / Agente_Calificador_Preliminar con RAG y salida JSON tipada; error → P2_ERROR_IA.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $json.output ?? $json.result ?? $json.data ?? $json;\nlet parsed = raw;\nlet parseError = null;\ntry {\n  if (typeof parsed === 'string') parsed = JSON.parse(parsed);\n  if (parsed && typeof parsed.output === 'string') parsed = JSON.parse(parsed.output);\n} catch (error) {\n  parseError = error.message;\n  parsed = {};\n}\nconst valid = !parseError && parsed && typeof parsed === 'object' &&\n  typeof parsed.suficiente === 'boolean' &&\n  typeof parsed.confianza === 'number' && parsed.confianza >= 0 && parsed.confianza <= 1 &&\n  Array.isArray(parsed.hallazgos) && typeof parsed.recomendacion === 'string' &&\n  Array.isArray(parsed.evidencias);\nreturn [{ json: {\n  expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id,\n  json_valido: valid,\n  parser_error: parseError ?? (valid ? null : 'La salida no cumple CalificacionPreliminarJSON'),\n  suficiente: valid ? parsed.suficiente : false,\n  calificacion: valid ? parsed : null,\n  parsed_at: new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4760,
+        1160
+      ],
+      "id": "9586f036-4ff6-4bd7-951b-05c907c03fbd",
+      "name": "p2_parser · Validar JSON tipado",
+      "notes": "BPMN_ID=p2_parser | PROCESS=D5_Process | Structured Output Parser: valida estructura, tipos y rangos; no confía en texto libre.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e46e2ed8-31ee-4a96-800a-da057613b8f6",
+              "leftValue": "={{ $json.json_valido === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5000,
+        1160
+      ],
+      "id": "b8b39e63-b205-45cb-a5de-d7abb0aad346",
+      "name": "p2_json · ¿JSON válido?",
+      "notes": "BPMN_ID=p2_json | PROCESS=D5_Process | Compuerta exclusiva ¿JSON válido?; true=Sí, false=No.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fe1559db-3dd8-4efa-bf21-a2306b6e709f",
+              "leftValue": "={{ $json.suficiente === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5240,
+        1160
+      ],
+      "id": "05154607-4758-4ce8-9e09-ad484b802f5f",
+      "name": "p2_suficiente · ¿Suficiente?",
+      "notes": "BPMN_ID=p2_suficiente | PROCESS=D5_Process | Compuerta determinista ¿Suficiente? sobre la salida tipada.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, error_code: 'P2_ERROR_DESCARGA', source_node: 'p2_documentos', error_detail: $json.error?.message ?? $json.message ?? 'Fallo de descarga/PII', failed_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4040,
+        1460
+      ],
+      "id": "d315ac41-5615-4360-be09-691881522173",
+      "name": "p2_error_descarga · P2_ERROR_DESCARGA",
+      "notes": "BPMN_ID=p2_error_descarga | PROCESS=D5_Process | Evento de borde P2_ERROR_DESCARGA conectado a salida de error de p2_documentos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, error_code: 'P2_ERROR_IA', source_node: 'p2_agente', error_detail: $json.error?.message ?? $json.message ?? 'Fallo del agente A1', failed_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4520,
+        1460
+      ],
+      "id": "a5901a09-b270-449a-87b4-53a4081ec786",
+      "name": "p2_error_ia · P2_ERROR_IA",
+      "notes": "BPMN_ID=p2_error_ia | PROCESS=D5_Process | Evento de borde P2_ERROR_IA conectado a salida de error de p2_agente.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO trazas (expediente_id, bpmn_id, evento, payload, created_at)\nVALUES ($1, 'p2_fallo', 'FALLO_TECNICO_O_JSON', $2::jsonb, NOW());\nSELECT $1::text AS expediente_id, $2::jsonb AS fallo;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify({ error_code: $json.error_code ?? 'P2_JSON_INVALIDO', detail: $json.parser_error ?? $json.error_detail ?? 'Salida inválida' })] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5480,
+        1460
+      ],
+      "id": "83af2659-580f-4fee-9ed7-202d2a55b9cf",
+      "name": "p2_fallo · Registrar fallo",
+      "notes": "BPMN_ID=p2_fallo | PROCESS=D5_Process | Registra fallo técnico o salida JSON inválida en BD relacional y Trazas.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id, bpmn_id, estado, motivo, resume_url, created_at)\nVALUES ($1, 'p2_revision_fallo', 'PENDIENTE', 'Fallo técnico o JSON inválido', $2, NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5720,
+        1460
+      ],
+      "id": "9dfbf165-fbd4-41fc-95f8-17ef7f17c80b",
+      "name": "BD · Crear HITL p2_revision_fallo",
+      "notes": "BD RELACIONAL: crea tarea HITL p2_revision_fallo.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_HITL_TO, type: 'text', text: { body: 'Revisar fallo P02 de ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ': ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p2_revision_fallo', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5960,
+        1460
+      ],
+      "id": "4eb90cf3-34eb-4016-a058-0cbf42da9596",
+      "name": "WhatsApp · HITL p2_revision_fallo",
+      "notes": "WhatsApp al equipo jurídico con URL única de reanudación de p2_revision_fallo.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p2-revision-fallo"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6200,
+        1460
+      ],
+      "id": "09d7de54-b0f7-4a8c-b13b-6d59e3b4de0b",
+      "name": "p2_revision_fallo · HITL",
+      "notes": "BPMN_ID=p2_revision_fallo | PROCESS=D5_Process | HITL: revisar documentos y resolver incidente.",
+      "notesInFlow": true,
+      "webhookId": "fa991f30-ce4f-46a8-baed-303c1ea8bc9e"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl SET estado='RESUELTA', decision=$2::jsonb, resolved_at=NOW()\nWHERE expediente_id=$1 AND bpmn_id='p2_revision_fallo' AND estado='PENDIENTE';\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6440,
+        1380
+      ],
+      "id": "91001ef8-9a31-460c-811f-9749afc80af0",
+      "name": "BD · Cerrar HITL p2_revision_fallo",
+      "notes": "BD RELACIONAL: cierra y audita HITL p2_revision_fallo.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id, bpmn_id, estado, motivo, resume_url, created_at)\nVALUES ($1, 'p2_legal', 'PENDIENTE', 'Revisar evidencia y gravámenes', $2, NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5480,
+        1680
+      ],
+      "id": "3af7b263-a0ce-4d27-ac83-e5c05c36091e",
+      "name": "BD · Crear HITL p2_legal",
+      "notes": "BD RELACIONAL: crea tarea jurídica HITL p2_legal.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_HITL_TO, type: 'text', text: { body: 'Revisión jurídica/gravámenes de ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ': ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p2_legal', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5720,
+        1680
+      ],
+      "id": "560d6ba3-0fd6-47da-b859-61879f7cc97b",
+      "name": "WhatsApp · HITL p2_legal",
+      "notes": "WhatsApp al abogado con URL única de reanudación de p2_legal.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p2-legal"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5960,
+        1680
+      ],
+      "id": "a972aee8-994c-41e1-afd6-4d19165f3574",
+      "name": "p2_legal · HITL jurídico",
+      "notes": "BPMN_ID=p2_legal | PROCESS=D5_Process | HITL: revisión jurídica obligatoria de evidencia y gravámenes.",
+      "notesInFlow": true,
+      "webhookId": "c68c6351-29c2-48d8-ae5c-1e522df71ef9"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl SET estado='RESUELTA', decision=$2::jsonb, resolved_at=NOW()\nWHERE expediente_id=$1 AND bpmn_id='p2_legal' AND estado='PENDIENTE';\nINSERT INTO trazas (expediente_id,bpmn_id,evento,payload,created_at)\nVALUES ($1,'p2_legal','DECISION_HUMANA',$2::jsonb,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6200,
+        1600
+      ],
+      "id": "0e86722b-40d8-4ea2-b001-0f4efa4eceb0",
+      "name": "BD · Cerrar HITL p2_legal + etiqueta",
+      "notes": "BD RELACIONAL + Calibration Loop: registra la decisión humana de p2_legal.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d45ad184-dec0-4dc7-a2d9-ad4beda9dbf4",
+              "leftValue": "={{ Boolean($json.body?.subsanar ?? $json.subsanar) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6200,
+        1760
+      ],
+      "id": "77792e37-3c8d-4c64-b6e6-ac602d21aadb",
+      "name": "p2_subsanar · ¿Subsanar?",
+      "notes": "BPMN_ID=p2_subsanar | PROCESS=D5_Process | Compuerta exclusiva ¿Subsanar?; true=Sí, false=No.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "27f570e0-31dc-4c25-843b-3d2ec6af0ae2",
+              "leftValue": "={{ Boolean($json.body?.viable ?? $json.viable) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6440,
+        1880
+      ],
+      "id": "37052c6c-5dfd-4876-b8a8-832ff97608b7",
+      "name": "p2_viable · ¿Viable?",
+      "notes": "BPMN_ID=p2_viable | PROCESS=D5_Process | Compuerta exclusiva ¿Viable?; true=Sí, false=No.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        6680,
+        1820
+      ],
+      "id": "05551488-7b30-424a-91aa-a45d1528f114",
+      "name": "p2_fin_viable · Continúa P03",
+      "notes": "BPMN_ID=p2_fin_viable | PROCESS=D5_Process | Expediente viable; continúa P03.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        6680,
+        1960
+      ],
+      "id": "11b553d7-17f8-4065-b6f9-2db226090749",
+      "name": "p2_fin_descartada · Operación descartada",
+      "notes": "BPMN_ID=p2_fin_descartada | PROCESS=D5_Process | Fin P02 por operación descartada.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id,bpmn_id,estado,motivo,resume_url,created_at)\nVALUES ($1,'p2_subsanacion','PENDIENTE','Redactar observaciones de subsanación',$2,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5480,
+        2080
+      ],
+      "id": "8e914e94-d40d-4a44-bbc7-c835380307b8",
+      "name": "BD · Crear HITL p2_subsanacion",
+      "notes": "BD RELACIONAL: crea tarea HITL p2_subsanacion.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_HITL_TO, type: 'text', text: { body: 'Preparar subsanación para ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ': ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p2_subsanacion', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5720,
+        2080
+      ],
+      "id": "1768dccc-e432-48a5-baaa-36fbc5f434e6",
+      "name": "WhatsApp · HITL p2_subsanacion",
+      "notes": "WhatsApp al equipo jurídico para completar p2_subsanacion.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p2-subsanacion"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5960,
+        2080
+      ],
+      "id": "9458e19f-5ee1-4019-8855-941536f89458",
+      "name": "p2_subsanacion · HITL",
+      "notes": "BPMN_ID=p2_subsanacion | PROCESS=D5_Process | HITL: abogado detalla observaciones antes de solicitar subsanación al cliente.",
+      "notesInFlow": true,
+      "webhookId": "fe001111-1bbb-49ff-b579-be5b0d0a0ef1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl SET estado='RESUELTA', decision=$2::jsonb, resolved_at=NOW()\nWHERE expediente_id=$1 AND bpmn_id='p2_subsanacion' AND estado='PENDIENTE';\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6200,
+        2000
+      ],
+      "id": "7c09aae1-0abe-4793-aa80-3a8ed23d6988",
+      "name": "BD · Cerrar HITL p2_subsanacion",
+      "notes": "BD RELACIONAL + Calibration Loop: cierra p2_subsanacion y registra etiqueta humana.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $('Impl · Contexto aislado por expediente_id').first().json.contacto, type: 'text', text: { body: 'Expediente ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ': necesitamos documentos corregidos. Responda mediante el enlace seguro: ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p2_esperar', resume_url: $execution.resumeUrl, deadline: 'P5D' } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6200,
+        2160
+      ],
+      "id": "6764612c-b9db-4b46-b7c9-5b5af0d31fa2",
+      "name": "WhatsApp · Solicitar documentos corregidos",
+      "notes": "WhatsApp al cliente: solicitud de subsanación y URL de respuesta asociada al Wait p2_esperar.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, wait_kind: 'documentos_corregidos', bpmn_gateway: 'p2_esperar', deadline_iso8601: 'P5D', started_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6440,
+        2160
+      ],
+      "id": "d58da707-0952-4db8-8472-0e1541bff546",
+      "name": "Impl · Preparar carrera evento/P5D",
+      "notes": "Limpia payload previo para distinguir de forma determinista callback del cliente frente a vencimiento P5D.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p2-documentos-corregidos"
+        },
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 5,
+        "resumeUnit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6680,
+        2160
+      ],
+      "id": "79170b1d-73ba-4e4e-9bd6-88031c529999",
+      "name": "p2_esperar · Evento o P5D",
+      "notes": "BPMN_ID=p2_esperar | PROCESS=D5_Process | Compuerta basada en eventos implementada como Wait reanudable con límite P5D.",
+      "notesInFlow": true,
+      "webhookId": "95e301ce-38a5-4ffd-b1b6-b04455ea8df0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c798600b-d3b5-4516-9f38-1486e4e0b196",
+              "leftValue": "={{ Boolean($json.body || $json.query || $json.headers) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6920,
+        2160
+      ],
+      "id": "b35e505f-9aa5-463c-90f4-572e3c151e84",
+      "name": "Impl · ¿Respuesta antes de P5D?",
+      "notes": "Implementación n8n de eventBasedGateway: true=webhook del cliente, false=limit wait time P5D.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nreturn [{ json: { ...$('Impl · Contexto aislado por expediente_id').first().json, documentos_corregidos: payload.documentos ?? payload, respuesta_cliente_en: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7160,
+        2080
+      ],
+      "id": "97550fbe-eb06-47af-985e-f687e9021341",
+      "name": "p2_respuesta · Documentos corregidos",
+      "notes": "BPMN_ID=p2_respuesta | PROCESS=D5_Process | Evento intermedio: documentos corregidos recibidos del cliente.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DRIVE_ADAPTER_URL + '/expedientes/' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + '/versiones' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p2_version', source: 'cliente', documentos: $json.documentos_corregidos, action: 'validate_and_register_next_version' })) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7400,
+        2080
+      ],
+      "id": "cd7e27b8-88af-4c1b-b732-95c8b970ed8c",
+      "name": "p2_version · Registrar versión corregida",
+      "notes": "BPMN_ID=p2_version | PROCESS=D5_Process | Validar y registrar versión corregida antes de reingestar.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, timer: 'P5D', timed_out: true, bpmn_id: 'p2_plazo', occurred_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7160,
+        2280
+      ],
+      "id": "e529c0e5-7bf2-4847-aeb3-359c7dae0b51",
+      "name": "p2_plazo · P5D",
+      "notes": "BPMN_ID=p2_plazo | PROCESS=D5_Process | Evento de temporizador: 5 días sin respuesta (P5D), fuera del LLM.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id,bpmn_id,estado,motivo,resume_url,created_at)\nVALUES ($1,'p2_archivar','PENDIENTE','P5D sin subsanación',$2,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7400,
+        2280
+      ],
+      "id": "41d043bc-d63a-4b6a-936c-aebc21ffd816",
+      "name": "BD · Crear HITL p2_archivar",
+      "notes": "BD RELACIONAL: crea tarea HITL p2_archivar tras P5D.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_HITL_TO, type: 'text', text: { body: 'P5D vencido para ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + '. Confirmar archivo: ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p2_archivar', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7640,
+        2280
+      ],
+      "id": "f2bec11b-48fd-424f-b0d8-4e4a848ff394",
+      "name": "WhatsApp · HITL p2_archivar",
+      "notes": "WhatsApp al responsable para confirmar archivo por falta de subsanación.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p2-archivar"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        7880,
+        2280
+      ],
+      "id": "91e2e7cb-8573-422b-abcc-3d3711221ff7",
+      "name": "p2_archivar · HITL",
+      "notes": "BPMN_ID=p2_archivar | PROCESS=D5_Process | HITL: confirmar archivo por falta de subsanación.",
+      "notesInFlow": true,
+      "webhookId": "bb75be02-ad7d-4595-8244-f7323c96e54d"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl SET estado='RESUELTA', decision=$2::jsonb, resolved_at=NOW()\nWHERE expediente_id=$1 AND bpmn_id='p2_archivar' AND estado='PENDIENTE';\nUPDATE solicitudes SET estado='P02_ABANDONO', updated_at=NOW() WHERE expediente_id=$1;\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8120,
+        2200
+      ],
+      "id": "fccac56e-0099-40ef-9231-173636e1348d",
+      "name": "BD · Cerrar HITL p2_archivar",
+      "notes": "BD RELACIONAL: cierra HITL y archiva estado P02_ABANDONO.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        8120,
+        2360
+      ],
+      "id": "c7a8362f-a235-4481-bd64-47fc84e34f18",
+      "name": "p2_fin_abandono · Archivada",
+      "notes": "BPMN_ID=p2_fin_abandono | PROCESS=D5_Process | Fin P02: archivada por falta de subsanación.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        6920,
+        2540
+      ],
+      "id": "e2e7c187-2f61-4715-ab12-a37cd7b6db4f",
+      "name": "p3_inicio · Expediente viable",
+      "notes": "BPMN_ID=p3_inicio | PROCESS=D6_Process | Inicio P03 desde expediente viable de P02.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/orchestrator/dispatch' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ proceso: 'P03', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_node: 'p3_borrador', estado_tipado: $('Impl · Contexto aislado por expediente_id').first().json, hitl_nodes: ['p3_revision','p3_firma'] })) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7160,
+        2540
+      ],
+      "id": "d23b7251-85eb-4210-bb11-f04ef56aefe8",
+      "name": "Orquestador · Despachar P03",
+      "notes": "ORQUESTADOR LangGraph: despacha P03 y conserva estado/checkpointer aislado por expediente_id.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a2/draft' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A2', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_node: 'p3_borrador', accion: 'generar_borrador_minuta', formatos: ['docx','markdown'], expediente: $('Impl · Contexto aislado por expediente_id').first().json, analisis: $('p2_parser · Validar JSON tipado').first().json, cambios_cliente: $json.cambios ?? $json.body?.cambios ?? null, salida_tipificada: true })) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7400,
+        2540
+      ],
+      "id": "fe90c125-6707-4ef3-8604-d1c4e8987c7f",
+      "name": "p3_borrador · A2 Redactor",
+      "notes": "BPMN_ID=p3_borrador | PROCESS=D6_Process | Agente A2 genera borrador de minuta en Word/Markdown; admite bucle por cambios del cliente.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO trazas (expediente_id,bpmn_id,evento,payload,created_at)\nVALUES ($1,'p3_borrador','ERROR_OPERATIVO',$2::jsonb,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify({ detail: $json.error?.message ?? $json.message ?? 'Fallo A2' })] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7640,
+        2780
+      ],
+      "id": "b12e00af-45d6-4b65-b0ca-f3b7bc7a8bb3",
+      "name": "BD · Error operativo A2",
+      "notes": "Control técnico n8n (sin crear un ID BPMN inexistente): registra fallo operativo de A2.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id,bpmn_id,estado,motivo,resume_url,created_at)\nVALUES ($1,'p3_revision','PENDIENTE','Revisión de fondo legal y cláusulas',$2,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7640,
+        2540
+      ],
+      "id": "6ec5f9f9-734c-4877-8136-12983ff1b99c",
+      "name": "BD · Crear HITL p3_revision",
+      "notes": "BD RELACIONAL: crea tarea HITL p3_revision.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_TITULAR_TO, type: 'text', text: { body: 'Revisar minuta de ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ': ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p3_revision', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7880,
+        2540
+      ],
+      "id": "b671aaf0-658c-457f-9c5e-9002ac4f5256",
+      "name": "WhatsApp · HITL p3_revision",
+      "notes": "WhatsApp al Abogado Titular con URL única de p3_revision.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p3-revision"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        8120,
+        2540
+      ],
+      "id": "bd05a76f-53cc-4e92-9af0-452f6eb89371",
+      "name": "p3_revision · HITL Titular",
+      "notes": "BPMN_ID=p3_revision | PROCESS=D6_Process | HITL obligatorio: revisar fondo legal y cláusulas.",
+      "notesInFlow": true,
+      "webhookId": "82d6be85-4ac9-42b4-9096-cfa6859fc29a"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl SET estado='RESUELTA',decision=$2::jsonb,resolved_at=NOW()\nWHERE expediente_id=$1 AND bpmn_id='p3_revision' AND estado='PENDIENTE';\nINSERT INTO trazas (expediente_id,bpmn_id,evento,payload,created_at)\nVALUES ($1,'p3_revision','DECISION_HUMANA',$2::jsonb,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8360,
+        2440
+      ],
+      "id": "1aaddeb3-80e1-432b-ba5f-93553e4ec7d2",
+      "name": "BD · Cerrar HITL p3_revision + etiqueta",
+      "notes": "BD RELACIONAL + Calibration Loop: conserva decisión humana de p3_revision.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dc090389-1677-45e0-907f-77c9e936109a",
+              "leftValue": "={{ Boolean($json.body?.aprobado ?? $json.aprobado) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        8360,
+        2620
+      ],
+      "id": "82e36504-8766-403f-a585-8d80270eb434",
+      "name": "p3_aprobacion · ¿Aprobado?",
+      "notes": "BPMN_ID=p3_aprobacion | PROCESS=D6_Process | Compuerta exclusiva ¿Aprobado?; true=Sí, false=No.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a2/correct' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A2', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_node: 'p3_corregir', borrador: $('p3_borrador · A2 Redactor').first().json, observaciones: $json.body?.observaciones ?? $json.observaciones ?? [], accion: 'subsanar_observaciones_y_transcripcion' })) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8600,
+        2760
+      ],
+      "id": "f21ff13e-a2d4-452f-882a-25b92a18794f",
+      "name": "p3_corregir · A2 Subsanar",
+      "notes": "BPMN_ID=p3_corregir | PROCESS=D6_Process | A2 subsana observaciones y errores de transcripción; vuelve a revisión.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $('Impl · Contexto aislado por expediente_id').first().json.contacto, type: 'text', text: { body: 'Borrador de minuta del expediente ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ' disponible. Confirme o solicite cambios: ' + $execution.resumeUrl }, document: $('p3_borrador · A2 Redactor').first().json.document_url ?? $('p3_borrador · A2 Redactor').first().json.docx_url, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p3_enviar', resume_url: $execution.resumeUrl, deadline: 'PT72H' } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8600,
+        2500
+      ],
+      "id": "83fbc185-589b-4a61-8f9b-8f5cfce5e7f8",
+      "name": "p3_enviar · A2 + WhatsApp",
+      "notes": "BPMN_ID=p3_enviar | PROCESS=D6_Process | A2 envía borrador al cliente por API/WhatsApp e incluye URL de respuesta.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, wait_kind: 'conformidad_cliente', bpmn_gateway: 'p3_esperar', deadline_iso8601: 'PT72H', started_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8840,
+        2500
+      ],
+      "id": "1afc217f-c16d-4409-87e6-9f23264bd0bb",
+      "name": "Impl · Preparar carrera evento/PT72H",
+      "notes": "Limpia payload para distinguir callback del cliente frente a vencimiento PT72H.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p3-conformidad-cliente"
+        },
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 72,
+        "resumeUnit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        9080,
+        2500
+      ],
+      "id": "a130b29a-6d65-4fcd-a4f5-5d201cbd6a34",
+      "name": "p3_esperar · Evento o PT72H",
+      "notes": "BPMN_ID=p3_esperar | PROCESS=D6_Process | Compuerta basada en eventos implementada como Wait con límite PT72H.",
+      "notesInFlow": true,
+      "webhookId": "a0a5f1c8-f4ee-4f6e-8681-11c5b391aef8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0a01e7cb-03e9-4702-afd3-0270a966c3b7",
+              "leftValue": "={{ Boolean($json.body || $json.query || $json.headers) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        9320,
+        2500
+      ],
+      "id": "317b490f-d1c3-4344-8a3d-cbc365411c61",
+      "name": "Impl · ¿Respuesta antes de PT72H?",
+      "notes": "Implementación n8n de eventBasedGateway: true=respuesta; false=vencimiento PT72H.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nreturn [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, cliente_conforme: Boolean(payload.conforme), cambios: payload.cambios ?? payload.observaciones ?? [], respuesta_cliente_en: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9560,
+        2400
+      ],
+      "id": "ce3d5833-de99-4767-aa36-4b28704f68a0",
+      "name": "p3_respuesta · Respuesta cliente",
+      "notes": "BPMN_ID=p3_respuesta | PROCESS=D6_Process | Evento intermedio: conformidad o cambios recibidos del cliente.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7ea293e6-e7e1-49e0-ae3e-b6f3635cd5e2",
+              "leftValue": "={{ $json.cliente_conforme === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        9800,
+        2400
+      ],
+      "id": "cd78bbc6-69fc-4ad1-b989-6c6a8c1fb5b3",
+      "name": "p3_conforme · ¿Conforme?",
+      "notes": "BPMN_ID=p3_conforme | PROCESS=D6_Process | Compuerta exclusiva ¿Conforme?; true=Sí, false=pide cambios.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, timer: 'PT72H', timed_out: true, bpmn_id: 'p3_plazo', occurred_at: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9560,
+        2640
+      ],
+      "id": "5684a36b-d57b-4a9a-8b0b-581a0b2c15b5",
+      "name": "p3_plazo · PT72H",
+      "notes": "BPMN_ID=p3_plazo | PROCESS=D6_Process | Evento de temporizador: 72 horas sin respuesta (PT72H), fuera del LLM.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE solicitudes SET estado='P03_SIN_CONFORMIDAD',updated_at=NOW() WHERE expediente_id=$1;\nINSERT INTO trazas (expediente_id,bpmn_id,evento,payload,created_at)\nVALUES ($1,'p3_plazo','PT72H',jsonb_build_object('timer','PT72H'),NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9800,
+        2640
+      ],
+      "id": "854f3bc0-12c3-4671-817c-afc0d8d1aa5f",
+      "name": "BD · Archivar sin conformidad",
+      "notes": "BD RELACIONAL: persiste cierre P03_SIN_CONFORMIDAD por PT72H.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $('Impl · Contexto aislado por expediente_id').first().json.contacto, type: 'text', text: { body: 'El expediente ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ' fue archivado al no recibirse conformidad en 72 horas.' }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p3_plazo' } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10040,
+        2640
+      ],
+      "id": "7a8d5b25-8089-4738-a2d7-d2a18db6163b",
+      "name": "WhatsApp · Archivo PT72H",
+      "notes": "WhatsApp informativo al cliente tras vencer PT72H.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        10280,
+        2640
+      ],
+      "id": "9b01470b-480e-4659-970f-3b3354e4afa0",
+      "name": "p3_fin_sin_conformidad · Archivada",
+      "notes": "BPMN_ID=p3_fin_sin_conformidad | PROCESS=D6_Process | Fin P03: archivada sin conformidad.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tareas_hitl (expediente_id,bpmn_id,estado,motivo,resume_url,created_at)\nVALUES ($1,'p3_firma','PENDIENTE','Firma y sello físico de minuta',$2,NOW());\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, $execution.resumeUrl] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        10040,
+        2320
+      ],
+      "id": "0c8b1890-662c-4e71-829a-ac2553248269",
+      "name": "BD · Crear HITL p3_firma",
+      "notes": "BD RELACIONAL: crea tarea HITL p3_firma.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHATSAPP_API_URL + '/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ messaging_product: 'whatsapp', to: $env.WHATSAPP_TITULAR_TO, type: 'text', text: { body: 'Firma física pendiente para ' + $('Impl · Contexto aislado por expediente_id').first().json.expediente_id + ': ' + $execution.resumeUrl }, metadata: { expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p3_firma', resume_url: $execution.resumeUrl } })) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10280,
+        2320
+      ],
+      "id": "e771ccaa-c617-43ca-81af-75d72702c091",
+      "name": "WhatsApp · HITL p3_firma",
+      "notes": "WhatsApp al Titular para firma física y sello.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "responseCode": 200,
+        "responseMode": "onReceived",
+        "options": {
+          "webhookSuffix": "p3-firma"
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        10520,
+        2320
+      ],
+      "id": "3abf9fea-8e99-4fa8-8593-eda6e468efa0",
+      "name": "p3_firma · HITL firma física",
+      "notes": "BPMN_ID=p3_firma | PROCESS=D6_Process | HITL obligatorio: firma y sello físico de la minuta.",
+      "notesInFlow": true,
+      "webhookId": "b46e67b3-5f53-4ae8-bb4a-a922789962e2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tareas_hitl SET estado='RESUELTA',decision=$2::jsonb,resolved_at=NOW()\nWHERE expediente_id=$1 AND bpmn_id='p3_firma' AND estado='PENDIENTE';\nSELECT $1::text AS expediente_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify($json.body ?? $json)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        10760,
+        2240
+      ],
+      "id": "1d4852b5-06ec-49bd-b066-df0b539cc652",
+      "name": "BD · Cerrar HITL p3_firma",
+      "notes": "BD RELACIONAL: cierra y audita HITL p3_firma.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTARIA_ADAPTER_URL + '/minutas' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, bpmn_id: 'p3_notaria', notaria: 'Bracamonte', borrador: $('p3_borrador · A2 Redactor').first().json, firma: $json.body ?? $json, action: 'ingresar_y_obtener_kardex' })) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10760,
+        2400
+      ],
+      "id": "fa6921fc-16e1-4e03-8c5a-c47387bfca76",
+      "name": "p3_notaria · Ingreso y kárdex",
+      "notes": "BPMN_ID=p3_notaria | PROCESS=D6_Process | Ingresar minuta en Notaría Bracamonte y obtener kárdex.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        11000,
+        2400
+      ],
+      "id": "7a86cda7-4ef1-496a-b48c-9512770a75ac",
+      "name": "p3_fin · Fin",
+      "notes": "BPMN_ID=p3_fin | PROCESS=D6_Process | Fin exitoso del proceso de minuta notarial.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_RUNTIME_URL + '/agents/a3/audit' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.SAGALE_INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(({ agente: 'A3', expediente_id: $('Impl · Contexto aislado por expediente_id').first().json.expediente_id, alcance: ['P01','P02','P03'], requiere_citas: true, indicadores: ['tiempo_ciclo','reproceso','hitl','excepciones'], kardex: $('p3_notaria · Ingreso y kárdex').first().json, bpmn_fin: 'p3_fin' })) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        11240,
+        2400
+      ],
+      "id": "093a0e17-f831-42b7-9ad3-1ed26b468349",
+      "name": "A3 · Auditoría E2E con citas",
+      "notes": "AGENTE A3 · Asistente y Auditoría RAG: genera cierre con citas y métricas P01–P03.",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE solicitudes SET estado='P03_CERRADA',updated_at=NOW() WHERE expediente_id=$1;\nINSERT INTO conversaciones (expediente_id,rol,tipo,contenido,created_at)\nVALUES ($1,'sistema','cierre_notarial',$2::jsonb,NOW());\nINSERT INTO trazas (expediente_id,bpmn_id,evento,payload,created_at)\nVALUES ($1,'p3_fin','PROCESO_CERRADO',$2::jsonb,NOW());\nSELECT $1::text AS expediente_id, 'P03_CERRADA'::text AS estado;",
+        "options": {
+          "queryReplacement": "={{ [$('Impl · Contexto aislado por expediente_id').first().json.expediente_id, JSON.stringify({ auditoria: $json, kardex: $('p3_notaria · Ingreso y kárdex').first().json.kardex ?? null })] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        11480,
+        2400
+      ],
+      "id": "e58c5095-8238-45a4-bd4c-a37856ef9421",
+      "name": "BD + Memoria · Cierre P03",
+      "notes": "BD RELACIONAL + MEMORIA: cierra expediente, guarda resumen conversacional y traza final.\nCONFIGURACIÓN: seleccionar una credencial PostgreSQL en n8n; no se exportan secretos.",
+      "notesInFlow": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "p1_inicio · Solicitud HTTP POST": {
+      "main": [
+        [
+          {
+            "node": "p1_validar · 10 campos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_validar · 10 campos": {
+      "main": [
+        [
+          {
+            "node": "p1_valida · ¿Válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_valida · ¿Válida?": {
+      "main": [
+        [
+          {
+            "node": "p1_normalizar · Reglas RPA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p1_fallidos_datos · Cola_Fallidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_normalizar · Reglas RPA": {
+      "main": [
+        [
+          {
+            "node": "p1_hash · SHA-256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_hash · SHA-256": {
+      "main": [
+        [
+          {
+            "node": "Impl · Contexto aislado por expediente_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Contexto aislado por expediente_id": {
+      "main": [
+        [
+          {
+            "node": "BD · Solicitud + pedido conversacional",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Solicitud + pedido conversacional": {
+      "main": [
+        [
+          {
+            "node": "Memoria · Cargar pedidos del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria · Cargar pedidos del cliente": {
+      "main": [
+        [
+          {
+            "node": "A3 · Contexto conversacional y citas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A3 · Contexto conversacional y citas": {
+      "main": [
+        [
+          {
+            "node": "Orquestador · Despachar P01",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orquestador · Despachar P01": {
+      "main": [
+        [
+          {
+            "node": "A0 · Ingesta e idempotencia P01",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A0 · Ingesta e idempotencia P01": {
+      "main": [
+        [
+          {
+            "node": "p1_consultar · Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p1_error_sistema · P1_ERROR_SISTEMA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_consultar · Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "p1_existe · ¿Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p1_error_sheets · P1_ERROR_SHEETS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_existe · ¿Existe?": {
+      "main": [
+        [
+          {
+            "node": "p1_200 · 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p1_registrar · Solicitudes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_200 · 200 OK": {
+      "main": [
+        [
+          {
+            "node": "p1_fin_duplicada · Reenvío atendido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_registrar · Solicitudes": {
+      "main": [
+        [
+          {
+            "node": "BD · Confirmar P01 y traza",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p1_error_sistema · P1_ERROR_SISTEMA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Confirmar P01 y traza": {
+      "main": [
+        [
+          {
+            "node": "p1_201 · 201 Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_201 · 201 Created": {
+      "main": [
+        [
+          {
+            "node": "p1_fin_nueva · Continúa P02",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_fallidos_datos · Cola_Fallidos": {
+      "main": [
+        [
+          {
+            "node": "p1_400 · 400 Bad Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_400 · 400 Bad Request": {
+      "main": [
+        [
+          {
+            "node": "p1_fin_invalida · Entrada inválida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_error_sheets · P1_ERROR_SHEETS": {
+      "main": [
+        [
+          {
+            "node": "p1_reintento · Backoff 2/4/8 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_reintento · Backoff 2/4/8 s": {
+      "main": [
+        [
+          {
+            "node": "Impl · Esperar 2 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Esperar 2 s": {
+      "main": [
+        [
+          {
+            "node": "Impl · Reintento Sheets 1 de 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Reintento Sheets 1 de 3": {
+      "main": [
+        [
+          {
+            "node": "Impl · Marcar recuperación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Impl · Esperar 4 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Esperar 4 s": {
+      "main": [
+        [
+          {
+            "node": "Impl · Reintento Sheets 2 de 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Reintento Sheets 2 de 3": {
+      "main": [
+        [
+          {
+            "node": "Impl · Marcar recuperación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Impl · Esperar 8 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Esperar 8 s": {
+      "main": [
+        [
+          {
+            "node": "Impl · Reintento Sheets 3 de 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Reintento Sheets 3 de 3": {
+      "main": [
+        [
+          {
+            "node": "Impl · Marcar recuperación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Impl · Reintentos agotados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Marcar recuperación": {
+      "main": [
+        [
+          {
+            "node": "p1_recuperado · ¿Recuperado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Reintentos agotados": {
+      "main": [
+        [
+          {
+            "node": "p1_recuperado · ¿Recuperado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_recuperado · ¿Recuperado?": {
+      "main": [
+        [
+          {
+            "node": "p1_consultar · Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BD · Crear HITL p1_incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_error_sistema · P1_ERROR_SISTEMA": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p1_incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p1_incidente": {
+      "main": [
+        [
+          {
+            "node": "p1_alertar · WhatsApp responsable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_alertar · WhatsApp responsable": {
+      "main": [
+        [
+          {
+            "node": "p1_incidente · HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_incidente · HITL": {
+      "main": [
+        [
+          {
+            "node": "BD · Cerrar HITL p1_incidente",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "p1_fin_incidente · Derivada a revisión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p1_fin_nueva · Continúa P02": {
+      "main": [
+        [
+          {
+            "node": "p2_inicio · Registro de P01",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_inicio · Registro de P01": {
+      "main": [
+        [
+          {
+            "node": "Orquestador · Despachar P02",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orquestador · Despachar P02": {
+      "main": [
+        [
+          {
+            "node": "p2_documentos · A0 + Compuerta PII",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_documentos · A0 + Compuerta PII": {
+      "main": [
+        [
+          {
+            "node": "BD · Versión inicial + traza PII",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p2_error_descarga · P2_ERROR_DESCARGA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Versión inicial + traza PII": {
+      "main": [
+        [
+          {
+            "node": "p2_agente · A1 Calificador Preliminar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_agente · A1 Calificador Preliminar": {
+      "main": [
+        [
+          {
+            "node": "p2_parser · Validar JSON tipado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p2_error_ia · P2_ERROR_IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_parser · Validar JSON tipado": {
+      "main": [
+        [
+          {
+            "node": "p2_json · ¿JSON válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_json · ¿JSON válido?": {
+      "main": [
+        [
+          {
+            "node": "p2_suficiente · ¿Suficiente?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p2_fallo · Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_error_descarga · P2_ERROR_DESCARGA": {
+      "main": [
+        [
+          {
+            "node": "p2_fallo · Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_error_ia · P2_ERROR_IA": {
+      "main": [
+        [
+          {
+            "node": "p2_fallo · Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_fallo · Registrar fallo": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p2_revision_fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p2_revision_fallo": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · HITL p2_revision_fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · HITL p2_revision_fallo": {
+      "main": [
+        [
+          {
+            "node": "p2_revision_fallo · HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_revision_fallo · HITL": {
+      "main": [
+        [
+          {
+            "node": "BD · Cerrar HITL p2_revision_fallo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BD · Crear HITL p2_legal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_suficiente · ¿Suficiente?": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p2_legal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BD · Crear HITL p2_subsanacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p2_legal": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · HITL p2_legal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · HITL p2_legal": {
+      "main": [
+        [
+          {
+            "node": "p2_legal · HITL jurídico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_legal · HITL jurídico": {
+      "main": [
+        [
+          {
+            "node": "p2_subsanar · ¿Subsanar?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BD · Cerrar HITL p2_legal + etiqueta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_subsanar · ¿Subsanar?": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p2_subsanacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p2_viable · ¿Viable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p2_subsanacion": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · HITL p2_subsanacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · HITL p2_subsanacion": {
+      "main": [
+        [
+          {
+            "node": "p2_subsanacion · HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_viable · ¿Viable?": {
+      "main": [
+        [
+          {
+            "node": "p2_fin_viable · Continúa P03",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p2_fin_descartada · Operación descartada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_subsanacion · HITL": {
+      "main": [
+        [
+          {
+            "node": "BD · Cerrar HITL p2_subsanacion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp · Solicitar documentos corregidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · Solicitar documentos corregidos": {
+      "main": [
+        [
+          {
+            "node": "Impl · Preparar carrera evento/P5D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Preparar carrera evento/P5D": {
+      "main": [
+        [
+          {
+            "node": "p2_esperar · Evento o P5D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_esperar · Evento o P5D": {
+      "main": [
+        [
+          {
+            "node": "Impl · ¿Respuesta antes de P5D?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · ¿Respuesta antes de P5D?": {
+      "main": [
+        [
+          {
+            "node": "p2_respuesta · Documentos corregidos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p2_plazo · P5D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_respuesta · Documentos corregidos": {
+      "main": [
+        [
+          {
+            "node": "p2_version · Registrar versión corregida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_version · Registrar versión corregida": {
+      "main": [
+        [
+          {
+            "node": "p2_documentos · A0 + Compuerta PII",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_plazo · P5D": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p2_archivar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p2_archivar": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · HITL p2_archivar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · HITL p2_archivar": {
+      "main": [
+        [
+          {
+            "node": "p2_archivar · HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_archivar · HITL": {
+      "main": [
+        [
+          {
+            "node": "BD · Cerrar HITL p2_archivar",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "p2_fin_abandono · Archivada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p2_fin_viable · Continúa P03": {
+      "main": [
+        [
+          {
+            "node": "p3_inicio · Expediente viable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_inicio · Expediente viable": {
+      "main": [
+        [
+          {
+            "node": "Orquestador · Despachar P03",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orquestador · Despachar P03": {
+      "main": [
+        [
+          {
+            "node": "p3_borrador · A2 Redactor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_borrador · A2 Redactor": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p3_revision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BD · Error operativo A2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p3_revision": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · HITL p3_revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · HITL p3_revision": {
+      "main": [
+        [
+          {
+            "node": "p3_revision · HITL Titular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_revision · HITL Titular": {
+      "main": [
+        [
+          {
+            "node": "BD · Cerrar HITL p3_revision + etiqueta",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "p3_aprobacion · ¿Aprobado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_aprobacion · ¿Aprobado?": {
+      "main": [
+        [
+          {
+            "node": "p3_enviar · A2 + WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p3_corregir · A2 Subsanar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_corregir · A2 Subsanar": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p3_revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_enviar · A2 + WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Impl · Preparar carrera evento/PT72H",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · Preparar carrera evento/PT72H": {
+      "main": [
+        [
+          {
+            "node": "p3_esperar · Evento o PT72H",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_esperar · Evento o PT72H": {
+      "main": [
+        [
+          {
+            "node": "Impl · ¿Respuesta antes de PT72H?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Impl · ¿Respuesta antes de PT72H?": {
+      "main": [
+        [
+          {
+            "node": "p3_respuesta · Respuesta cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p3_plazo · PT72H",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_respuesta · Respuesta cliente": {
+      "main": [
+        [
+          {
+            "node": "p3_conforme · ¿Conforme?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_conforme · ¿Conforme?": {
+      "main": [
+        [
+          {
+            "node": "BD · Crear HITL p3_firma",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "p3_borrador · A2 Redactor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_plazo · PT72H": {
+      "main": [
+        [
+          {
+            "node": "BD · Archivar sin conformidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Archivar sin conformidad": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · Archivo PT72H",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · Archivo PT72H": {
+      "main": [
+        [
+          {
+            "node": "p3_fin_sin_conformidad · Archivada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD · Crear HITL p3_firma": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp · HITL p3_firma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp · HITL p3_firma": {
+      "main": [
+        [
+          {
+            "node": "p3_firma · HITL firma física",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_firma · HITL firma física": {
+      "main": [
+        [
+          {
+            "node": "BD · Cerrar HITL p3_firma",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "p3_notaria · Ingreso y kárdex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_notaria · Ingreso y kárdex": {
+      "main": [
+        [
+          {
+            "node": "p3_fin · Fin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "p3_fin · Fin": {
+      "main": [
+        [
+          {
+            "node": "A3 · Auditoría E2E con citas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A3 · Auditoría E2E con citas": {
+      "main": [
+        [
+          {
+            "node": "BD + Memoria · Cierre P03",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "America/Lima"
+  },
+  "versionId": "dacfa4e9-3cbc-4200-9272-5db14f90390a",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "source": "PROMPT1.MD + BPMN D4/D5/D6",
+    "description": "P01 + P02 + P03, Orquestador, A0–A3, PostgreSQL, memoria, HITL y WhatsApp."
+  },
+  "tags": []
+}

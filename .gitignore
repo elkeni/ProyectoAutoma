@@ -1,0 +1,38 @@
+# Credenciales y configuración local
+.env
+.env.*
+!.env.example
+secrets/
+credentials.json
+*.pem
+*.key
+
+# Datos y documentos de expedientes
+data/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# Entornos, cachés y artefactos de Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Configuración de equipo y temporales
+.vscode/
+.idea/
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
