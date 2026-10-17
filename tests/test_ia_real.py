@@ -105,6 +105,84 @@ def test_sin_evidencia_no_invoca_modelo(
         assert respuesta.json()["abstencion"]
 
 
+def test_nueva_solicitud_conserva_evidencia_hitl_y_cierre(
+    tmp_path: Path, acceso: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with TestClient(crear_app(tmp_path / "nuevo-integral.sqlite3")) as client:
+        creado = client.post("/api/demo/nueva-solicitud").json()
+        expediente = creado["expediente_id"]
+        partida = "DEMO-" + expediente.rsplit("-", 1)[1]
+        modelo = get_llm(
+            "fake",
+            respuestas_fake=[
+                json.dumps(
+                    {
+                        "suficiente": True,
+                        "viable": True,
+                        "requiere_subsanacion": False,
+                        "probabilidad": 0.9,
+                        "observaciones": ["Evidencia completa."],
+                        "citas": [
+                            {
+                                "expediente_id": expediente,
+                                "version_documental": 1,
+                                "documento_id": f"partida_sunarp_{partida}.txt",
+                                "ubicacion": "fragmento-1",
+                            }
+                        ],
+                    }
+                )
+            ],
+        )
+        monkeypatch.setattr("agentes.a01_calificador_analisis.get_llm", lambda *a, **kw: modelo)
+        assert (
+            client.post(
+                "/api/ia/analizar", json={"expediente_id": expediente}, headers=AUTH
+            ).json()["fase"]
+            == "p2_legal"
+        )
+        for nodo, decision in (
+            ("p2_legal", "viable"),
+            ("p3_revision", "aprobar"),
+            ("p3_firma", "firmar"),
+        ):
+            if nodo == "p3_firma":
+                assert (
+                    client.post(
+                        "/api/demo/conforme", json={"expediente_id": expediente}
+                    ).status_code
+                    == 200
+                )
+            tablero = client.get("/api/dashboard", params={"expediente_id": expediente}).json()
+            tarea = next(
+                t
+                for t in tablero["tareas"]
+                if t["expediente_id"] == expediente and t["nodo_bpmn_id"] == nodo
+            )
+            assert (
+                client.post(
+                    f"/api/hitl/{tarea['tarea_id']}",
+                    json={
+                        "actor": "Abogado Titular",
+                        "decision": decision,
+                        "kardex_notarial": "KB-DEMO-NUEVO" if nodo == "p3_firma" else None,
+                    },
+                ).status_code
+                == 200
+            )
+        markdown = client.get(f"/api/minuta/{expediente}/markdown")
+        assert partida in markdown.text
+        assert client.get(f"/api/minuta/{expediente}/word").content.startswith(b"PK")
+        assert (
+            client.post("/api/demo/idempotencia", json={"expediente_id": expediente}).json()[
+                "codigo_http"
+            ]
+            == 200
+        )
+        tablero = client.get("/api/dashboard", params={"expediente_id": expediente}).json()
+        assert tablero["seleccionado"]["fase"] == "p3_fin"
+
+
 def test_p02_ia_real_simulada_conserva_hitl_y_cierre(
     tmp_path: Path, acceso: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

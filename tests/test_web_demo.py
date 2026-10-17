@@ -159,6 +159,49 @@ def test_cargador_demo_siembra_cuatro_expedientes_de_forma_idempotente(tmp_path:
         )
 
 
+def test_solicitudes_nuevas_reenvios_aislamiento_y_reinicio(tmp_path: Path) -> None:
+    ruta = tmp_path / "ensayo.sqlite3"
+    with TestClient(crear_app(ruta)) as client:
+        # La solicitud del ensayo anterior no impide presentar otro registro 201.
+        client.post("/api/demo/solicitud")
+        antes = client.get("/api/dashboard").json()
+        primero = client.post("/api/demo/nueva-solicitud").json()
+        segundo = client.post("/api/demo/nueva-solicitud").json()
+        assert primero["codigo_http"] == segundo["codigo_http"] == 201
+        assert primero["expediente_id"] != segundo["expediente_id"]
+        for caso in (primero, segundo):
+            entrada = {"expediente_id": caso["expediente_id"]}
+            tablero = client.get("/api/dashboard", params=entrada).json()
+            assert tablero["seleccionado"]["fase"] == "p1_fin_nueva"
+            assert any(t["nodo"] == "p1_201" for t in tablero["seleccionado"]["trazas"])
+            for _ in range(2):
+                repetido = client.post("/api/demo/idempotencia", json=entrada).json()
+                assert repetido["codigo_http"] == 200
+                assert repetido["expediente_id"] == caso["expediente_id"]
+        despues = client.get("/api/dashboard").json()
+        assert despues["tareas"] == antes["tareas"]
+        assert despues["seleccionado"] == antes["seleccionado"]
+        assert len(despues["expedientes"]) == len(antes["expedientes"]) + 2
+        assert (
+            client.post(
+                "/api/demo/idempotencia", json={"expediente_id": "EXP-2026-002"}
+            ).status_code
+            == 409
+        )
+        assert (
+            client.post("/api/demo/idempotencia", json={"expediente_id": "../fuera"}).status_code
+            == 422
+        )
+    with TestClient(crear_app(ruta)) as client:
+        assert client.post("/api/demo/nueva-solicitud").json()["codigo_http"] == 201
+        assert (
+            client.post(
+                "/api/demo/idempotencia", json={"expediente_id": primero["expediente_id"]}
+            ).status_code
+            == 409
+        )
+
+
 def test_producto_web_recorridos_p01_p02_p03_y_descargas(tmp_path: Path) -> None:
     ruta = tmp_path / "sagale-web.sqlite3"
     with TestClient(crear_app(ruta)) as client:

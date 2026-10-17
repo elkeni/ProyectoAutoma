@@ -103,6 +103,10 @@ TITULOS_EXPEDIENTE = {
 EXPEDIENTE_EN_VIVO = "EXP-2026-001-LIVE"
 
 
+def _es_solicitud_viva(expediente_id: str) -> bool:
+    return expediente_id == EXPEDIENTE_EN_VIVO or expediente_id.startswith(EXPEDIENTE_EN_VIVO + "-")
+
+
 def _validar_texto_web(valor: str) -> str:
     if any(
         unicodedata.category(caracter) == "Cc" and caracter not in "\n\r\t" for caracter in valor
@@ -194,6 +198,7 @@ class ServicioDemo:
         self._limite_ia = LimiteIA()
         self._bloqueo = threading.RLock()
         self._estados: dict[str, EstadoAgente] = {}
+        self._contratos_vivos: dict[str, dict[str, object]] = {}
         self._hilos: dict[str, tuple[Proceso, str]] = {}
         self._fases: dict[str, str] = {
             "EXP-2026-004": "p1_400",
@@ -288,9 +293,9 @@ class ServicioDemo:
         self._fases["EXP-2026-001"] = "p3_revision"
 
     def _cliente(self, expediente_id: str) -> dict[str, str]:
-        if expediente_id == EXPEDIENTE_EN_VIVO:
+        if _es_solicitud_viva(expediente_id):
             return {
-                "cliente_id": "CLI-2026-001-LIVE",
+                "cliente_id": "CLI-" + expediente_id,
                 "nombre": "Cliente WhatsApp en vivo",
                 "contacto": "+51 [CONTACTO_PROTEGIDO]",
             }
@@ -371,8 +376,7 @@ class ServicioDemo:
 
     def _tareas_pendientes(self) -> list[dict[str, object]]:
         expedientes = [*EXPEDIENTES_DEMO]
-        if EXPEDIENTE_EN_VIVO in self._fases:
-            expedientes.append(EXPEDIENTE_EN_VIVO)
+        expedientes.extend(exp for exp in self._fases if _es_solicitud_viva(exp))
         tareas: list[dict[str, object]] = []
         for expediente_id in expedientes:
             for tarea in self.orquestador.base_datos.listar_tareas_hitl(expediente_id, "pendiente"):
@@ -410,8 +414,7 @@ class ServicioDemo:
     def tablero(self, expediente_id: str) -> dict[str, object]:
         with self._bloqueo:
             expedientes = [*EXPEDIENTES_DEMO]
-            if EXPEDIENTE_EN_VIVO in self._fases:
-                expedientes.append(EXPEDIENTE_EN_VIVO)
+            expedientes.extend(exp for exp in self._fases if _es_solicitud_viva(exp))
             if expediente_id not in expedientes:
                 raise ValueError("El expediente solicitado no está disponible.")
             seleccionado = expediente_id
@@ -424,7 +427,9 @@ class ServicioDemo:
                 "expedientes": [
                     {
                         "expediente_id": expediente,
-                        "titulo": TITULOS_EXPEDIENTE[expediente],
+                        "titulo": TITULOS_EXPEDIENTE.get(
+                            expediente, "Solicitud nueva por WhatsApp · demostración P01"
+                        ),
                         "fase": self._fase_actual(expediente),
                         "version_documental": self._version_actual(expediente),
                     }
@@ -432,7 +437,9 @@ class ServicioDemo:
                 ],
                 "seleccionado": {
                     "expediente_id": seleccionado,
-                    "titulo": TITULOS_EXPEDIENTE[seleccionado],
+                    "titulo": TITULOS_EXPEDIENTE.get(
+                        seleccionado, "Solicitud nueva por WhatsApp · demostración P01"
+                    ),
                     "fase": fase,
                     "proceso": proceso,
                     "version_documental": self._version_actual(seleccionado),
@@ -455,7 +462,7 @@ class ServicioDemo:
                     "minuta_previa": self.minuta_markdown(seleccionado)
                     if seleccionado in {"EXP-2026-001", "EXP-2026-002", "EXP-2026-003"}
                     or (
-                        seleccionado == EXPEDIENTE_EN_VIVO
+                        _es_solicitud_viva(seleccionado)
                         and estado
                         and estado.get("borrador_minuta")
                     )
@@ -487,26 +494,36 @@ class ServicioDemo:
                 "expediente_id": entrada.expediente_id,
             }
 
-    def enviar_solicitud(self) -> dict[str, object]:
+    def nueva_solicitud(self) -> dict[str, object]:
+        """Crea otro caso sintético sin borrar ni reemplazar un ensayo anterior."""
         with self._bloqueo:
-            if EXPEDIENTE_EN_VIVO in self._estados:
-                return self.reenviar_solicitud()
-            contrato = contrato_para("EXP-2026-001")
+            identificador = uuid.uuid4().hex
+            expediente_id = f"{EXPEDIENTE_EN_VIVO}-{identificador}"
+            contrato = dict(contrato_para("EXP-2026-001"))
+            contrato["partida_registral"] = f"DEMO-{identificador}"
+            self._contratos_vivos[expediente_id] = contrato
+            return self.enviar_solicitud(expediente_id)
+
+    def enviar_solicitud(self, expediente_id: str = EXPEDIENTE_EN_VIVO) -> dict[str, object]:
+        with self._bloqueo:
+            if expediente_id in self._estados:
+                return self.reenviar_solicitud(expediente_id)
+            contrato = self._contratos_vivos.get(expediente_id, contrato_para("EXP-2026-001"))
             estado = self.orquestador.iniciar_p01(
-                expediente_id=EXPEDIENTE_EN_VIVO,
+                expediente_id=expediente_id,
                 contrato=contrato,
                 thread_id=f"demo-live-p1-{uuid.uuid4()}",
             )
-            self._estados[EXPEDIENTE_EN_VIVO] = estado
-            self._fases[EXPEDIENTE_EN_VIVO] = str(estado["nodo_bpmn_actual"])
+            self._estados[expediente_id] = estado
+            self._fases[expediente_id] = str(estado["nodo_bpmn_actual"])
             self._registrar_mensaje(
-                expediente_id=EXPEDIENTE_EN_VIVO,
+                expediente_id=expediente_id,
                 direccion="entrada",
                 tipo="solicitud_minuta",
                 contenido="Solicitud de minuta con 10 campos y enlaces protegidos de recaudos.",
             )
             self._registrar_mensaje(
-                expediente_id=EXPEDIENTE_EN_VIVO,
+                expediente_id=expediente_id,
                 direccion="salida",
                 tipo="bienvenida",
                 contenido=(
@@ -517,31 +534,37 @@ class ServicioDemo:
             codigo = int(estado.get("codigo_http") or 500)
             return {
                 "mensaje": f"P01 completado: {codigo} {'Created' if codigo == 201 else 'OK'} · hash SHA-256 {_mascara_hash(estado.get('clave_idempotencia_sha256'))}",
-                "expediente_id": EXPEDIENTE_EN_VIVO,
+                "expediente_id": expediente_id,
                 "codigo_http": codigo,
             }
 
-    def reenviar_solicitud(self) -> dict[str, object]:
+    def reenviar_solicitud(self, expediente_id: str = EXPEDIENTE_EN_VIVO) -> dict[str, object]:
         with self._bloqueo:
-            if EXPEDIENTE_EN_VIVO not in self._estados:
+            if not _es_solicitud_viva(expediente_id):
+                raise ValueError("Seleccione una solicitud creada con el botón 1.")
+            if expediente_id != EXPEDIENTE_EN_VIVO and expediente_id not in self._estados:
+                raise ValueError(
+                    "La solicitud no está disponible en esta instancia; cree otra con el botón 1."
+                )
+            if expediente_id not in self._estados:
                 self.enviar_solicitud()
             estado = self.orquestador.iniciar_p01(
-                expediente_id=EXPEDIENTE_EN_VIVO,
-                contrato=contrato_para("EXP-2026-001"),
+                expediente_id=expediente_id,
+                contrato=self._contratos_vivos.get(expediente_id, contrato_para("EXP-2026-001")),
                 thread_id=f"demo-live-p1-replay-{uuid.uuid4()}",
             )
-            if self._fase_actual(EXPEDIENTE_EN_VIVO).startswith("p1_"):
-                self._estados[EXPEDIENTE_EN_VIVO] = estado
-                self._fases[EXPEDIENTE_EN_VIVO] = str(estado["nodo_bpmn_actual"])
+            if self._fase_actual(expediente_id).startswith("p1_"):
+                self._estados[expediente_id] = estado
+                self._fases[expediente_id] = str(estado["nodo_bpmn_actual"])
             self._registrar_mensaje(
-                expediente_id=EXPEDIENTE_EN_VIVO,
+                expediente_id=expediente_id,
                 direccion="entrada",
                 tipo="reenvio_solicitud",
                 contenido="Reenvío de la misma solicitud para validar idempotencia SHA-256.",
             )
             return {
                 "mensaje": "p1_existe detectó la misma clave: 200 OK. No se creó un segundo expediente.",
-                "expediente_id": EXPEDIENTE_EN_VIVO,
+                "expediente_id": expediente_id,
                 "codigo_http": int(estado.get("codigo_http") or 500),
             }
 
@@ -756,7 +779,7 @@ class ServicioDemo:
             return respuesta.model_dump(mode="json")
 
     def minuta_markdown(self, expediente_id: str) -> str:
-        if expediente_id not in {
+        if not _es_solicitud_viva(expediente_id) and expediente_id not in {
             "EXP-2026-001",
             "EXP-2026-002",
             "EXP-2026-003",
@@ -767,13 +790,13 @@ class ServicioDemo:
         borrador = estado.get("borrador_minuta") if estado else None
         if isinstance(borrador, str) and borrador:
             return borrador
-        if expediente_id == EXPEDIENTE_EN_VIVO:
+        if _es_solicitud_viva(expediente_id):
             raise ValueError("El borrador requiere primero revisión de viabilidad.")
         datos = DatosMinuta.model_validate(self._datos_minuta(expediente_id))
         return ensamblar_minuta(datos).contenido_markdown
 
     def minuta_docx(self, expediente_id: str) -> bytes:
-        if expediente_id not in {
+        if not _es_solicitud_viva(expediente_id) and expediente_id not in {
             "EXP-2026-001",
             "EXP-2026-002",
             "EXP-2026-003",
@@ -781,7 +804,7 @@ class ServicioDemo:
         }:
             raise ValueError("No hay minuta para este expediente.")
         estado_actual = self._estados.get(expediente_id)
-        if expediente_id == EXPEDIENTE_EN_VIVO and not (
+        if _es_solicitud_viva(expediente_id) and not (
             estado_actual and estado_actual.get("borrador_minuta")
         ):
             raise ValueError("El borrador todavía no está disponible.")
@@ -791,14 +814,31 @@ class ServicioDemo:
             raise RuntimeError("No se pudo generar el Word de la minuta.")
         return documento.contenido_docx
 
-    @staticmethod
-    def _datos_minuta(expediente_id: str) -> dict[str, object]:
-        fuente = "EXP-2026-001" if expediente_id == EXPEDIENTE_EN_VIVO else expediente_id
-        return {**datos_minuta_para(fuente), "expediente_id": expediente_id}
+    def _datos_minuta(self, expediente_id: str) -> dict[str, object]:
+        fuente = "EXP-2026-001" if _es_solicitud_viva(expediente_id) else expediente_id
+        datos = datos_minuta_para(fuente)
+        contrato = self._contratos_vivos.get(expediente_id)
+        if contrato:
+            datos = json.loads(
+                json.dumps(datos).replace("11048592", str(contrato["partida_registral"]))
+            )
+        return {**datos, "expediente_id": expediente_id}
+
+    def _recaudos_solicitud(self, expediente_id: str) -> list[dict[str, object]]:
+        recaudos = recaudos_para("EXP-2026-001")
+        contrato = self._contratos_vivos.get(expediente_id)
+        if contrato:
+            return cast(
+                list[dict[str, object]],
+                json.loads(
+                    json.dumps(recaudos).replace("11048592", str(contrato["partida_registral"]))
+                ),
+            )
+        return recaudos
 
     def analizar_ia(self, expediente_id: str) -> dict[str, object]:
         with self._bloqueo:
-            if expediente_id != EXPEDIENTE_EN_VIVO or self._fases.get(expediente_id) not in {
+            if not _es_solicitud_viva(expediente_id) or self._fases.get(expediente_id) not in {
                 "p1_fin_nueva",
                 "p1_fin_duplicada",
             }:
@@ -810,7 +850,7 @@ class ServicioDemo:
             hilo = f"ia-p02-{uuid.uuid4()}"
             resultado = self.orquestador.iniciar_p02(
                 self._estados[expediente_id],
-                recaudos=recaudos_para("EXP-2026-001"),
+                recaudos=self._recaudos_solicitud(expediente_id),
                 thread_id=hilo,
                 espera_interactiva=True,
             )
@@ -942,9 +982,20 @@ def crear_app(ruta_base: str | Path | None = None) -> FastAPI:
             raise _error_http(error) from error
 
     @app.post("/api/demo/idempotencia")
-    def demo_idempotencia(request: Request) -> dict[str, object]:
+    def demo_idempotencia(
+        request: Request, entrada: ExpedienteEntrada | None = None
+    ) -> dict[str, object]:
         try:
-            return servicio(request).reenviar_solicitud()
+            return servicio(request).reenviar_solicitud(
+                entrada.expediente_id if entrada else EXPEDIENTE_EN_VIVO
+            )
+        except (RuntimeError, ValueError) as error:
+            raise _error_http(error) from error
+
+    @app.post("/api/demo/nueva-solicitud")
+    def demo_nueva_solicitud(request: Request) -> dict[str, object]:
+        try:
+            return servicio(request).nueva_solicitud()
         except (RuntimeError, ValueError) as error:
             raise _error_http(error) from error
 
@@ -1276,7 +1327,7 @@ PAGINA_HTML = r"""<!doctype html>
             <button class="primary" type="submit">Registrar mensaje</button>
           </form>
           <div class="actions" aria-label="Acciones de demostración">
-            <button class="accent" type="button" data-demo="solicitud">1. Enviar solicitud de minuta</button>
+            <button class="accent" type="button" data-demo="nueva-solicitud">1. Enviar solicitud de minuta</button>
             <button class="secondary" type="button" data-demo="idempotencia">2. Reenviar la misma solicitud</button>
             <button class="secondary" type="button" data-demo="subsanacion">3. Enviar documentos corregidos</button>
             <button class="secondary" type="button" data-demo="conforme">4. Confirmar conformidad del borrador</button>
@@ -1395,13 +1446,14 @@ PAGINA_HTML = r"""<!doctype html>
       });
     }
     function renderMinuta(selected) {
-      const preview = document.getElementById('minuta-preview'); const md = document.getElementById('download-md'); const word = document.getElementById('download-docx'); const allowed = ['EXP-2026-001','EXP-2026-002','EXP-2026-003'].includes(selected.expediente_id) || (selected.expediente_id === 'EXP-2026-001-LIVE' && selected.minuta_disponible); md.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/markdown' : '#'; word.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/word' : '#'; md.setAttribute('aria-disabled', String(!allowed)); word.setAttribute('aria-disabled', String(!allowed)); preview.textContent = allowed ? (selected.minuta_previa || 'Borrador aún no disponible.') + (selected.kardex_notarial ? '\n\nKárdex registrado: ' + selected.kardex_notarial : '') : 'El expediente seleccionado todavía no tiene una minuta disponible.';
+      const preview = document.getElementById('minuta-preview'); const md = document.getElementById('download-md'); const word = document.getElementById('download-docx'); const allowed = ['EXP-2026-001','EXP-2026-002','EXP-2026-003'].includes(selected.expediente_id) || (esSolicitudViva(selected.expediente_id) && selected.minuta_disponible); md.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/markdown' : '#'; word.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/word' : '#'; md.setAttribute('aria-disabled', String(!allowed)); word.setAttribute('aria-disabled', String(!allowed)); preview.textContent = allowed ? (selected.minuta_previa || 'Borrador aún no disponible.') + (selected.kardex_notarial ? '\n\nKárdex registrado: ' + selected.kardex_notarial : '') : 'El expediente seleccionado todavía no tiene una minuta disponible.';
     }
     function renderRag(result) { const box = document.getElementById('rag-result'); box.replaceChildren(); const answer = document.createElement('div'); answer.textContent = result.respuesta; box.append(answer); if (result.citas && result.citas.length) { const citations = document.createElement('div'); citations.className = 'citations'; result.citas.forEach(cite => { const chip = document.createElement('span'); chip.className = 'citation'; chip.textContent = cite; citations.append(chip); }); box.append(citations); } }
-    async function refresh() { const serial = ++state.refreshSerial; const data = await api('/api/dashboard?expediente_id=' + encodeURIComponent(state.selected)); if (serial !== state.refreshSerial) return; state.dashboard = data; state.selected = data.seleccionado.expediente_id; renderMetrics(data.metricas); renderCases(data); renderProcess(data.seleccionado, data.seleccionado.trazas); renderConversation(data.mensajes); renderTasks(data.tareas); renderMinuta(data.seleccionado); document.getElementById('ai-analysis').disabled = !(state.selected === 'EXP-2026-001-LIVE' && ['p1_fin_nueva','p1_fin_duplicada'].includes(data.seleccionado.fase)); }
+    function esSolicitudViva(id) { return id === 'EXP-2026-001-LIVE' || id.startsWith('EXP-2026-001-LIVE-'); }
+    async function refresh() { const serial = ++state.refreshSerial; const data = await api('/api/dashboard?expediente_id=' + encodeURIComponent(state.selected)); if (serial !== state.refreshSerial) return; state.dashboard = data; state.selected = data.seleccionado.expediente_id; renderMetrics(data.metricas); renderCases(data); renderProcess(data.seleccionado, data.seleccionado.trazas); renderConversation(data.mensajes); renderTasks(data.tareas); renderMinuta(data.seleccionado); document.getElementById('ai-analysis').disabled = !(esSolicitudViva(state.selected) && ['p1_fin_nueva','p1_fin_duplicada'].includes(data.seleccionado.fase)); }
     document.getElementById('case-select').addEventListener('change', async event => { state.selected = event.target.value; document.getElementById('rag-result').textContent = 'Consulte los documentos del expediente seleccionado.'; setNotice(''); try { await refresh(); } catch (error) { setNotice(error.message, true); } });
     document.getElementById('free-message-form').addEventListener('submit', async event => { event.preventDefault(); const field = document.getElementById('whatsapp-message'); if (!field.value.trim()) return; try { const result = await api('/api/whatsapp', { method: 'POST', body: JSON.stringify({ contenido: field.value, expediente_id: state.selected }) }); field.value = ''; setNotice(result.mensaje); await refresh(); } catch (error) { setNotice(error.message, true); } });
-    document.querySelectorAll('[data-demo]').forEach(button => { button.addEventListener('click', async () => { const action = button.dataset.demo; try { button.disabled = true; const result = await api('/api/demo/' + action, { method: 'POST', body: action === 'conforme' ? JSON.stringify({expediente_id:state.selected}) : '{}' }); state.selected = result.expediente_id || state.selected; setNotice(result.mensaje); await refresh(); } catch (error) { setNotice(error.message, true); } finally { button.disabled = false; } }); });
+    document.querySelectorAll('[data-demo]').forEach(button => { button.addEventListener('click', async () => { const action = button.dataset.demo; try { button.disabled = true; const result = await api('/api/demo/' + action, { method: 'POST', body: ['conforme','idempotencia'].includes(action) ? JSON.stringify({expediente_id:state.selected}) : '{}' }); state.selected = result.expediente_id || state.selected; setNotice(result.mensaje); await refresh(); } catch (error) { setNotice(error.message, true); } finally { button.disabled = false; } }); });
     document.getElementById('rag-form').addEventListener('submit', async event => { event.preventDefault(); try { const query = document.getElementById('rag-question').value; const result = await api('/api/rag', { method: 'POST', body: JSON.stringify({ contenido: query, expediente_id: state.selected }) }); renderRag(result); } catch (error) { setNotice(error.message, true); } });
     async function callAI(path, payload, button) {
       if (!document.getElementById('ai-form').reportValidity()) return;

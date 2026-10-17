@@ -95,6 +95,15 @@ Para un análisis P02 real, envíe una solicitud con el botón 1 y después puls
 resultado válido exige revisión humana. No se reemplazan decisiones de los cuatro
 casos de ejemplo ni se hacen llamadas pagadas al abrir la web.
 
+Para repetir una exposición, el botón **1. Enviar solicitud de minuta** crea
+otro expediente demostrativo con una partida sintética propia y resultado `201`.
+El botón **2. Reenviar la misma solicitud** repite el expediente seleccionado y
+devuelve `200`, conservando los datos, los demás casos y los controles humanos.
+Puede volver al botón 1 para iniciar otro ensayo sin borrar la base. Los nuevos
+identificadores llevan el prefijo `EXP-2026-001-LIVE-` y un sufijo único.
+Los casos interactivos dependen de la instancia: en Vercel pueden reiniciarse;
+para una exposición continua se recomienda ejecutar la aplicación localmente.
+
 El modelo se selecciona del catálogo disponible para la clave, priorizando Flash;
 puede fijarse con `SAGALE_GEMINI_MODEL`. Que aparezca en el catálogo no garantiza
 cuota de generación. Una suscripción a la aplicación Gemini no sustituye la

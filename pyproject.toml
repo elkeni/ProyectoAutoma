@@ -88,3 +88,4 @@ deployment_check = "python scripts/verificar_despliegue.py"
 git_commit_publication = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Documentar publicacion y verificaciones remotas"'
 git_commit_ai = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Conectar Gemini con acceso privado y validacion de evidencia"'
 ia_remote = "python scripts/probar_ia_remota.py"
+git_commit_demo = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Permitir ensayos repetidos de registro y duplicados sin borrar expedientes"'
