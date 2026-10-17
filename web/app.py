@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 import unicodedata
 import uuid
@@ -12,7 +13,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal, cast
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -22,6 +23,7 @@ from agentes.orquestador import Orquestador, Proceso
 from decision.calibracion import Calibrador, ObservacionCalibracion
 from ingesta.gestor_recaudos import FragmentoRAG
 from nucleo.estado import crear_estado
+from nucleo.modelos import ErrorIA, listar_modelos_gemini, seleccionar_modelo_gemini
 from rpa.plantilla_minuta_p03 import DatosMinuta, ensamblar_minuta
 from web.demo_datos import (
     CALIFICACION_CORREGIDA_EXP_003,
@@ -35,6 +37,7 @@ from web.demo_datos import (
     recaudos_para,
     ruta_base_demo,
 )
+from web.ia import LimiteIA, autorizar_ia
 
 NODOS_VISIBLES: dict[str, tuple[str, ...]] = {
     "P01": (
@@ -153,6 +156,13 @@ class ResolucionHITLEntrada(BaseModel):
         return self
 
 
+class ExpedienteEntrada(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    expediente_id: str = Field(
+        min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    )
+
+
 def _proceso_de_nodo(nodo_bpmn_id: str) -> Proceso:
     if nodo_bpmn_id.startswith("p1_"):
         return "P01"
@@ -174,7 +184,14 @@ class ServicioDemo:
     def __init__(self, ruta_base: str | Path | None = None) -> None:
         self.ruta_base = Path(ruta_base) if ruta_base is not None else ruta_base_demo()
         cargar_datos_demo(self.ruta_base)
-        self.orquestador = Orquestador(self.ruta_base, dormir=lambda _segundos: None)
+        self.orquestador = Orquestador(
+            self.ruta_base,
+            dormir=lambda _segundos: None,
+            proveedor_llm="gemini"
+            if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+            else "fake",
+        )
+        self._limite_ia = LimiteIA()
         self._bloqueo = threading.RLock()
         self._estados: dict[str, EstadoAgente] = {}
         self._hilos: dict[str, tuple[Proceso, str]] = {}
@@ -437,6 +454,11 @@ class ServicioDemo:
                     "minuta_disponible": bool(estado and estado.get("borrador_minuta")),
                     "minuta_previa": self.minuta_markdown(seleccionado)
                     if seleccionado in {"EXP-2026-001", "EXP-2026-002", "EXP-2026-003"}
+                    or (
+                        seleccionado == EXPEDIENTE_EN_VIVO
+                        and estado
+                        and estado.get("borrador_minuta")
+                    )
                     else None,
                     "kardex_notarial": estado.get("kardex_notarial") if estado else None,
                 },
@@ -467,6 +489,8 @@ class ServicioDemo:
 
     def enviar_solicitud(self) -> dict[str, object]:
         with self._bloqueo:
+            if EXPEDIENTE_EN_VIVO in self._estados:
+                return self.reenviar_solicitud()
             contrato = contrato_para("EXP-2026-001")
             estado = self.orquestador.iniciar_p01(
                 expediente_id=EXPEDIENTE_EN_VIVO,
@@ -506,8 +530,9 @@ class ServicioDemo:
                 contrato=contrato_para("EXP-2026-001"),
                 thread_id=f"demo-live-p1-replay-{uuid.uuid4()}",
             )
-            self._estados[EXPEDIENTE_EN_VIVO] = estado
-            self._fases[EXPEDIENTE_EN_VIVO] = str(estado["nodo_bpmn_actual"])
+            if self._fase_actual(EXPEDIENTE_EN_VIVO).startswith("p1_"):
+                self._estados[EXPEDIENTE_EN_VIVO] = estado
+                self._fases[EXPEDIENTE_EN_VIVO] = str(estado["nodo_bpmn_actual"])
             self._registrar_mensaje(
                 expediente_id=EXPEDIENTE_EN_VIVO,
                 direccion="entrada",
@@ -556,9 +581,10 @@ class ServicioDemo:
                 "codigo_http": 200,
             }
 
-    def confirmar_borrador(self) -> dict[str, object]:
+    def confirmar_borrador(self, expediente_id: str = "EXP-2026-001") -> dict[str, object]:
         with self._bloqueo:
-            expediente_id = "EXP-2026-001"
+            if expediente_id not in self._fases:
+                raise ValueError("El expediente indicado no está disponible.")
             if self._fase_actual(expediente_id) != "p3_esperar":
                 raise RuntimeError("Primero apruebe la revisión p3_revision desde la bandeja HITL.")
             proceso, thread_id = self._hilos[expediente_id]
@@ -617,7 +643,7 @@ class ServicioDemo:
         thread_id = f"demo-{expediente_id.casefold()}-p3-{uuid.uuid4()}"
         resultado = self.orquestador.iniciar_p03(
             estado_p2,
-            datos_minuta=datos_minuta_para(expediente_id),
+            datos_minuta=self._datos_minuta(expediente_id),
             thread_id=thread_id,
             evento_espera="respuesta",
             cliente_conforme=True,
@@ -730,23 +756,112 @@ class ServicioDemo:
             return respuesta.model_dump(mode="json")
 
     def minuta_markdown(self, expediente_id: str) -> str:
-        if expediente_id not in {"EXP-2026-001", "EXP-2026-002", "EXP-2026-003"}:
+        if expediente_id not in {
+            "EXP-2026-001",
+            "EXP-2026-002",
+            "EXP-2026-003",
+            EXPEDIENTE_EN_VIVO,
+        }:
             raise ValueError("No hay minuta para este expediente.")
         estado: EstadoAgente | None = self._estados.get(expediente_id)
         borrador = estado.get("borrador_minuta") if estado else None
         if isinstance(borrador, str) and borrador:
             return borrador
-        datos = DatosMinuta.model_validate(datos_minuta_para(expediente_id))
+        if expediente_id == EXPEDIENTE_EN_VIVO:
+            raise ValueError("El borrador requiere primero revisión de viabilidad.")
+        datos = DatosMinuta.model_validate(self._datos_minuta(expediente_id))
         return ensamblar_minuta(datos).contenido_markdown
 
     def minuta_docx(self, expediente_id: str) -> bytes:
-        if expediente_id not in {"EXP-2026-001", "EXP-2026-002", "EXP-2026-003"}:
+        if expediente_id not in {
+            "EXP-2026-001",
+            "EXP-2026-002",
+            "EXP-2026-003",
+            EXPEDIENTE_EN_VIVO,
+        }:
             raise ValueError("No hay minuta para este expediente.")
-        datos = DatosMinuta.model_validate(datos_minuta_para(expediente_id))
+        estado_actual = self._estados.get(expediente_id)
+        if expediente_id == EXPEDIENTE_EN_VIVO and not (
+            estado_actual and estado_actual.get("borrador_minuta")
+        ):
+            raise ValueError("El borrador todavía no está disponible.")
+        datos = DatosMinuta.model_validate(self._datos_minuta(expediente_id))
         documento = ensamblar_minuta(datos, formato="docx")
         if documento.contenido_docx is None:
             raise RuntimeError("No se pudo generar el Word de la minuta.")
         return documento.contenido_docx
+
+    @staticmethod
+    def _datos_minuta(expediente_id: str) -> dict[str, object]:
+        fuente = "EXP-2026-001" if expediente_id == EXPEDIENTE_EN_VIVO else expediente_id
+        return {**datos_minuta_para(fuente), "expediente_id": expediente_id}
+
+    def analizar_ia(self, expediente_id: str) -> dict[str, object]:
+        with self._bloqueo:
+            if expediente_id != EXPEDIENTE_EN_VIVO or self._fases.get(expediente_id) not in {
+                "p1_fin_nueva",
+                "p1_fin_duplicada",
+            }:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Envíe primero una solicitud nueva; no se reemplazan revisiones humanas existentes.",
+                )
+            self._limite_ia.reservar(expediente_id, self._version_actual(expediente_id))
+            hilo = f"ia-p02-{uuid.uuid4()}"
+            resultado = self.orquestador.iniciar_p02(
+                self._estados[expediente_id],
+                recaudos=recaudos_para("EXP-2026-001"),
+                thread_id=hilo,
+                espera_interactiva=True,
+            )
+            self._estados[expediente_id] = resultado
+            self._hilos[expediente_id] = ("P02", hilo)
+            self._fases[expediente_id] = str(resultado["nodo_bpmn_actual"])
+            calificacion = resultado.get("calificacion_json")
+            if isinstance(calificacion, dict):
+                self._calificaciones[expediente_id] = dict(calificacion)
+            return {
+                "expediente_id": expediente_id,
+                "fase": self._fases[expediente_id],
+                "mensaje": "Análisis real solicitado a Gemini. Revise el resultado y la tarea humana pendiente.",
+            }
+
+    def consultar_ia(self, entrada: MensajeEntrada) -> dict[str, object]:
+        with self._bloqueo:
+            expediente = entrada.expediente_id
+            if expediente not in self._fases:
+                raise ValueError("El expediente no está disponible.")
+            version = self._version_actual(expediente)
+            if self.orquestador.indice.cantidad(expediente, version) == 0:
+                return {
+                    "respuesta": "No hay evidencia autorizada para responder.",
+                    "citas": [],
+                    "abstencion": True,
+                }
+            self._limite_ia.reservar(expediente, version)
+            try:
+                respuesta = self.orquestador.a3.consultar_expediente_ia(
+                    expediente_id=expediente, version_documental=version, consulta=entrada.contenido
+                )
+            except RuntimeError:
+                self._trazar_consulta_ia(expediente, version, entrada.contenido, "ia_error")
+                raise
+            self._trazar_consulta_ia(expediente, version, entrada.contenido, "ia_validada")
+            return respuesta.model_dump(mode="json")
+
+    def _trazar_consulta_ia(
+        self, expediente: str, version: int, pregunta: str, resultado: str
+    ) -> None:
+        self.orquestador.base_datos.registrar_traza(
+            trace_id=f"ia-{uuid.uuid4()}",
+            expediente_id=expediente,
+            version_documental=version,
+            proceso_actual=_proceso_de_nodo(self._fase_actual(expediente)),
+            nodo_bpmn_id=self._fase_actual(expediente),
+            actor="A3_asistente_whatsapp_rag",
+            resultado=resultado,
+            metadatos={"consulta_sha256": hashlib.sha256(pregunta.encode()).hexdigest()},
+        )
 
 
 def _error_http(error: Exception) -> HTTPException:
@@ -841,9 +956,13 @@ def crear_app(ruta_base: str | Path | None = None) -> FastAPI:
             raise _error_http(error) from error
 
     @app.post("/api/demo/conforme")
-    def demo_conforme(request: Request) -> dict[str, object]:
+    def demo_conforme(
+        request: Request, entrada: ExpedienteEntrada | None = None
+    ) -> dict[str, object]:
         try:
-            return servicio(request).confirmar_borrador()
+            return servicio(request).confirmar_borrador(
+                entrada.expediente_id if entrada else "EXP-2026-001"
+            )
         except (RuntimeError, ValueError) as error:
             raise _error_http(error) from error
 
@@ -860,6 +979,50 @@ def crear_app(ruta_base: str | Path | None = None) -> FastAPI:
             return servicio(request).consultar_rag(entrada.expediente_id, entrada.contenido)
         except ValueError as error:
             raise _error_http(error) from error
+
+    @app.get("/api/ia/estado")
+    def estado_ia() -> dict[str, bool]:
+        return {
+            "configurada": bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")),
+            "protegida": len(os.getenv("SAGALE_AI_ACCESS_TOKEN", "")) >= 24,
+        }
+
+    @app.get("/api/ia/modelos")
+    def modelos_ia(authorization: str | None = Header(default=None)) -> dict[str, object]:
+        autorizar_ia(authorization)
+        try:
+            return {
+                "disponibles": listar_modelos_gemini(),
+                "seleccionado": seleccionar_modelo_gemini(),
+            }
+        except RuntimeError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from None
+
+    @app.post("/api/ia/consultar")
+    def consulta_ia(
+        request: Request, entrada: MensajeEntrada, authorization: str | None = Header(default=None)
+    ) -> dict[str, object]:
+        autorizar_ia(authorization)
+        try:
+            return servicio(request).consultar_ia(entrada)
+        except ErrorIA as error:
+            raise HTTPException(status_code=502, detail=str(error)) from None
+        except ValueError as error:
+            raise _error_http(error) from None
+        except RuntimeError:
+            raise HTTPException(
+                status_code=502,
+                detail="Gemini no devolvió una respuesta verificable. Revise modelo, permiso y cuota en AI Studio.",
+            ) from None
+
+    @app.post("/api/ia/analizar")
+    def analisis_ia(
+        request: Request,
+        entrada: ExpedienteEntrada,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        autorizar_ia(authorization)
+        return servicio(request).analizar_ia(entrada.expediente_id)
 
     @app.get("/api/minuta/{expediente_id}/markdown")
     def descargar_markdown(request: Request, expediente_id: str) -> Response:
@@ -1134,6 +1297,18 @@ PAGINA_HTML = r"""<!doctype html>
             <h2 id="rag-title">Consultar documentos</h2>
             <form id="rag-form"><input id="rag-question" type="text" required minlength="1" maxlength="1800" aria-label="Consulta RAG" placeholder="Ej.: ¿Qué evidencia respalda la viabilidad?" value="¿Qué evidencia respalda el expediente?"><button class="primary" type="submit">Consultar</button></form>
             <div id="rag-result" class="rag-result">Seleccione un expediente y formule una consulta. Las respuestas incluyen citas verificables.</div>
+            <details><summary>IA privada · Gemini</summary>
+              <p id="ai-status">Comprobando configuración de IA…</p>
+              <form id="ai-form">
+                <label for="ai-access">Contraseña de acceso a IA</label>
+                <input id="ai-access" type="password" required minlength="24" maxlength="256" autocomplete="off" placeholder="Contraseña de demostración; no es la clave API">
+                <div class="actions">
+                  <button class="primary" type="submit">Consultar con Gemini</button>
+                  <button id="ai-analysis" class="secondary" type="button" disabled>Analizar solicitud nueva con Gemini</button>
+                </div>
+              </form>
+              <p>Para analizar: envíe primero una solicitud con el botón 1. Gemini utiliza recaudos demostrativos protegidos y se detiene para revisión humana. Máximo 10 llamadas por hora y expediente en esta instancia.</p>
+            </details>
           </section>
         </div>
       </section>
@@ -1151,7 +1326,7 @@ PAGINA_HTML = r"""<!doctype html>
     </section>
   </main>
   <script>
-    const state = { selected: 'EXP-2026-001', dashboard: null };
+    const state = { selected: 'EXP-2026-001', dashboard: null, refreshSerial:0 };
     const labels = {
       p1_inicio:'Inicio del registro', p1_validar:'Validar solicitud', p1_valida:'Comprobar datos', p1_normalizar:'Preparar datos', p1_hash:'Identificar solicitud', p1_consultar:'Consultar registro', p1_existe:'Comprobar duplicados', p1_registrar:'Registrar solicitud', p1_201:'Solicitud creada', p1_200:'Solicitud ya registrada', p1_400:'Datos inválidos', p1_fallidos_datos:'Registrar datos incompletos', p1_fin_nueva:'Registro completo', p1_fin_duplicada:'Duplicado identificado', p1_fin_invalida:'Solicitud rechazada', p1_error_sheets:'Error de consulta', p1_error_sistema:'Error de registro', p1_reintento:'Reintentar consulta', p1_recuperado:'Comprobar recuperación', p1_alertar:'Notificar incidencia', p1_incidente:'Revisar incidencia', p1_fin_incidente:'Incidencia cerrada',
       p2_inicio:'Iniciar análisis', p2_documentos:'Recibir documentos', p2_version:'Actualizar documentos', p2_agente:'Analizar evidencia', p2_parser:'Validar análisis', p2_json:'Comprobar estructura', p2_suficiente:'Comprobar recaudos', p2_error_ia:'Error de análisis', p2_error_descarga:'Error de descarga', p2_fallo:'Registrar incidencia', p2_revision_fallo:'Resolver incidencia técnica', p2_legal:'Revisión legal', p2_subsanar:'Evaluar observaciones', p2_viable:'Evaluar viabilidad', p2_fin_viable:'Viabilidad aprobada', p2_fin_descartada:'Expediente descartado', p2_subsanacion:'Solicitar documentos', p2_esperar:'Esperar documentos', p2_respuesta:'Documentos recibidos', p2_plazo:'Plazo de 5 días vencido', p2_archivar:'Revisar archivo', p2_fin_abandono:'Archivado por abandono',
@@ -1216,14 +1391,35 @@ PAGINA_HTML = r"""<!doctype html>
       });
     }
     function renderMinuta(selected) {
-      const preview = document.getElementById('minuta-preview'); const md = document.getElementById('download-md'); const word = document.getElementById('download-docx'); const allowed = ['EXP-2026-001','EXP-2026-002','EXP-2026-003'].includes(selected.expediente_id); md.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/markdown' : '#'; word.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/word' : '#'; md.setAttribute('aria-disabled', String(!allowed)); word.setAttribute('aria-disabled', String(!allowed)); preview.textContent = allowed ? (selected.minuta_previa || 'Borrador aún no disponible.') + (selected.kardex_notarial ? '\n\nKárdex registrado: ' + selected.kardex_notarial : '') : 'El expediente seleccionado no genera minuta.';
+      const preview = document.getElementById('minuta-preview'); const md = document.getElementById('download-md'); const word = document.getElementById('download-docx'); const allowed = ['EXP-2026-001','EXP-2026-002','EXP-2026-003'].includes(selected.expediente_id) || (selected.expediente_id === 'EXP-2026-001-LIVE' && selected.minuta_disponible); md.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/markdown' : '#'; word.href = allowed ? '/api/minuta/' + encodeURIComponent(selected.expediente_id) + '/word' : '#'; md.setAttribute('aria-disabled', String(!allowed)); word.setAttribute('aria-disabled', String(!allowed)); preview.textContent = allowed ? (selected.minuta_previa || 'Borrador aún no disponible.') + (selected.kardex_notarial ? '\n\nKárdex registrado: ' + selected.kardex_notarial : '') : 'El expediente seleccionado todavía no tiene una minuta disponible.';
     }
     function renderRag(result) { const box = document.getElementById('rag-result'); box.replaceChildren(); const answer = document.createElement('div'); answer.textContent = result.respuesta; box.append(answer); if (result.citas && result.citas.length) { const citations = document.createElement('div'); citations.className = 'citations'; result.citas.forEach(cite => { const chip = document.createElement('span'); chip.className = 'citation'; chip.textContent = cite; citations.append(chip); }); box.append(citations); } }
-    async function refresh() { const data = await api('/api/dashboard?expediente_id=' + encodeURIComponent(state.selected)); state.dashboard = data; state.selected = data.seleccionado.expediente_id; renderMetrics(data.metricas); renderCases(data); renderProcess(data.seleccionado, data.seleccionado.trazas); renderConversation(data.mensajes); renderTasks(data.tareas); renderMinuta(data.seleccionado); }
+    async function refresh() { const serial = ++state.refreshSerial; const data = await api('/api/dashboard?expediente_id=' + encodeURIComponent(state.selected)); if (serial !== state.refreshSerial) return; state.dashboard = data; state.selected = data.seleccionado.expediente_id; renderMetrics(data.metricas); renderCases(data); renderProcess(data.seleccionado, data.seleccionado.trazas); renderConversation(data.mensajes); renderTasks(data.tareas); renderMinuta(data.seleccionado); document.getElementById('ai-analysis').disabled = !(state.selected === 'EXP-2026-001-LIVE' && ['p1_fin_nueva','p1_fin_duplicada'].includes(data.seleccionado.fase)); }
     document.getElementById('case-select').addEventListener('change', async event => { state.selected = event.target.value; document.getElementById('rag-result').textContent = 'Consulte los documentos del expediente seleccionado.'; setNotice(''); try { await refresh(); } catch (error) { setNotice(error.message, true); } });
     document.getElementById('free-message-form').addEventListener('submit', async event => { event.preventDefault(); const field = document.getElementById('whatsapp-message'); if (!field.value.trim()) return; try { const result = await api('/api/whatsapp', { method: 'POST', body: JSON.stringify({ contenido: field.value, expediente_id: state.selected }) }); field.value = ''; setNotice(result.mensaje); await refresh(); } catch (error) { setNotice(error.message, true); } });
-    document.querySelectorAll('[data-demo]').forEach(button => { button.addEventListener('click', async () => { const action = button.dataset.demo; try { button.disabled = true; const result = await api('/api/demo/' + action, { method: 'POST', body: '{}' }); state.selected = result.expediente_id || state.selected; setNotice(result.mensaje); await refresh(); } catch (error) { setNotice(error.message, true); } finally { button.disabled = false; } }); });
+    document.querySelectorAll('[data-demo]').forEach(button => { button.addEventListener('click', async () => { const action = button.dataset.demo; try { button.disabled = true; const result = await api('/api/demo/' + action, { method: 'POST', body: action === 'conforme' ? JSON.stringify({expediente_id:state.selected}) : '{}' }); state.selected = result.expediente_id || state.selected; setNotice(result.mensaje); await refresh(); } catch (error) { setNotice(error.message, true); } finally { button.disabled = false; } }); });
     document.getElementById('rag-form').addEventListener('submit', async event => { event.preventDefault(); try { const query = document.getElementById('rag-question').value; const result = await api('/api/rag', { method: 'POST', body: JSON.stringify({ contenido: query, expediente_id: state.selected }) }); renderRag(result); } catch (error) { setNotice(error.message, true); } });
+    async function callAI(path, payload, button) {
+      if (!document.getElementById('ai-form').reportValidity()) return;
+      const version = state.dashboard?.seleccionado.version_documental;
+      try {
+        button.disabled = true;
+        const result = await api(path, {method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + document.getElementById('ai-access').value}, body:JSON.stringify(payload)});
+        if (state.selected !== payload.expediente_id || state.dashboard?.seleccionado.version_documental !== version) return;
+        if (result.respuesta) renderRag(result);
+        if (result.mensaje) { setNotice(result.mensaje); await refresh(); }
+      } catch (error) { setNotice(error.message, true); }
+      finally { button.disabled = button.id === 'ai-analysis' && !['p1_fin_nueva','p1_fin_duplicada'].includes(state.dashboard?.seleccionado.fase); }
+    }
+    document.getElementById('ai-form').addEventListener('submit', async event => {
+      event.preventDefault(); const question = document.getElementById('rag-question');
+      validateField(question); if (!question.reportValidity()) return;
+      await callAI('/api/ia/consultar', {contenido:question.value, expediente_id:state.selected}, event.target.querySelector('button[type="submit"]'));
+    });
+    document.getElementById('ai-analysis').addEventListener('click', async event => {
+      await callAI('/api/ia/analizar', {expediente_id:state.selected}, event.target);
+    });
+    api('/api/ia/estado').then(info => { document.getElementById('ai-status').textContent = info.configurada && info.protegida ? 'Gemini configurado. Introduzca su contraseña para usar IA real.' : 'La IA real requiere clave y acceso privado configurados en Vercel.'; }).catch(error => setNotice(error.message, true));
     function validateField(field) {
       field.setCustomValidity('');
       const value = field.value.trim();

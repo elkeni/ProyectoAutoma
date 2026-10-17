@@ -76,3 +76,36 @@ El despliegue inicial se realizó desde la sesión del propietario mediante Verc
 CLI. Las verificaciones de GitHub Actions están activas; el despliegue automático
 de futuros commits requiere completar en Vercel la conexión GitHub con acceso al
 repositorio de `elkeni`.
+
+## Gemini real con acceso privado
+
+Guarde `GOOGLE_API_KEY` y `SAGALE_AI_ACCESS_TOKEN` como variables sensibles de
+Production en Vercel. La contraseña de acceso debe tener al menos 24 caracteres;
+no se incorpora a Git ni al navegador automáticamente. Se introduce en el campo
+de acceso privado y permanece solo en memoria de la página, sin almacenamiento local.
+
+En **Consultar documentos → IA privada · Gemini**, la consulta con Gemini usa
+únicamente fragmentos protegidos del expediente y versión seleccionados. Sus citas
+se validan contra la evidencia disponible; si no hay evidencia no se llama al modelo.
+La consulta habitual sin Gemini sigue siendo una extracción determinista.
+
+Para un análisis P02 real, envíe una solicitud con el botón 1 y después pulse
+**Analizar solicitud nueva con Gemini**. El análisis recorre `p2_documentos`,
+`p2_agente` y `p2_parser`; los fallos se detienen en `p2_revision_fallo` y el
+resultado válido exige revisión humana. No se reemplazan decisiones de los cuatro
+casos de ejemplo ni se hacen llamadas pagadas al abrir la web.
+
+El modelo se selecciona del catálogo disponible para la clave, priorizando Flash;
+puede fijarse con `SAGALE_GEMINI_MODEL`. Que aparezca en el catálogo no garantiza
+cuota de generación. Una suscripción a la aplicación Gemini no sustituye la
+facturación ni las cuotas del proyecto de API. Esta integración no habilita pagos.
+
+Las respuestas se validan con Pydantic y PydanticOutputParser; toda inferencia usa
+`get_llm()`. El borrador continúa usando el ensamblador determinista y ni la IA ni
+sus respuestas pueden aprobar viabilidad o firmar. La consulta minimiza PII antes
+de enviarse; las trazas guardan identificadores y hashes, no preguntas ni secretos.
+
+Hay un límite local de 10 intentos por hora y expediente/versión y una separación
+de 15 segundos. Este contador se reinicia con la instancia Vercel y no sustituye
+los límites de gasto y cuotas que configure el propietario en Google AI Studio.
+El acceso privado evita exponer la cuota como una API de IA pública.

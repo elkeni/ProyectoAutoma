@@ -6,10 +6,14 @@ requiera red ni credenciales.  Ningún otro módulo debe construir clientes de L
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Callable, Sequence
+from functools import lru_cache
 from importlib import import_module
 from typing import Literal, cast
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
@@ -19,6 +23,81 @@ ProveedorLLM = Literal["fake", "ollama", "gemini"]
 _RESPUESTA_FAKE_SEGURA = (
     '{"resultado":"sin_inferencia","confianza":0.0,"evidencias":[],"requiere_revision":true}'
 )
+
+
+class ErrorIA(RuntimeError):
+    """Error de proveedor redactado, sin cuerpo HTTP, prompts ni credenciales."""
+
+    def __init__(self, codigo: str) -> None:
+        self.codigo = codigo
+        mensajes = {
+            "CUOTA": "La cuota de Gemini está agotada o no habilitada para este proyecto de API.",
+            "ACCESO": "Gemini rechazó el acceso; revise la clave y los permisos en AI Studio.",
+            "FACTURACION": "El proyecto Gemini requiere revisar su facturación o saldo.",
+            "VALIDACION": "La IA no devolvió una respuesta con evidencia verificable.",
+        }
+        super().__init__(mensajes.get(codigo, "Gemini no respondió; intente de nuevo más tarde."))
+
+
+def error_ia_seguro(error: Exception) -> ErrorIA:
+    detalle = str(error).casefold()
+    if "429" in detalle or "resource_exhausted" in detalle:
+        return ErrorIA("CUOTA")
+    if "402" in detalle:
+        return ErrorIA("FACTURACION")
+    if "401" in detalle or "403" in detalle or "api_key_invalid" in detalle:
+        return ErrorIA("ACCESO")
+    if isinstance(error, ValueError):
+        return ErrorIA("VALIDACION")
+    return ErrorIA("PROVEEDOR")
+
+
+@lru_cache(maxsize=1)
+def listar_modelos_gemini() -> tuple[str, ...]:
+    """Consulta solo metadatos; la credencial permanece en el proceso servidor."""
+    clave = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not clave:
+        raise RuntimeError("No hay clave Gemini configurada.")
+    try:
+        peticion = Request(
+            "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+            headers={"x-goog-api-key": clave},
+        )
+        with urlopen(peticion, timeout=15) as respuesta:
+            datos = json.load(respuesta)
+    except (HTTPError, URLError, TimeoutError, ValueError):
+        raise RuntimeError(
+            "No se pudo verificar el catálogo Gemini; revise acceso y cuota."
+        ) from None
+    return tuple(
+        str(item["name"]).removeprefix("models/")
+        for item in datos.get("models", [])
+        if "generateContent" in item.get("supportedGenerationMethods", [])
+    )
+
+
+def seleccionar_modelo_gemini() -> str:
+    disponibles = listar_modelos_gemini()
+    elegido = os.getenv("SAGALE_GEMINI_MODEL")
+    candidatos = (
+        (elegido,) if elegido else ("gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash")
+    )
+    for candidato in candidatos:
+        if candidato in disponibles:
+            return str(candidato)
+    raise RuntimeError("No hay un modelo Flash compatible; configure SAGALE_GEMINI_MODEL.")
+
+
+def extraer_texto_ia(contenido: object) -> str:
+    if isinstance(contenido, str):
+        return contenido
+    if isinstance(contenido, list):
+        return "".join(
+            str(bloque["text"])
+            for bloque in contenido
+            if isinstance(bloque, dict) and bloque.get("type") == "text" and "text" in bloque
+        )
+    raise ValueError("El modelo no devolvió texto estructurado.")
 
 
 def _normalizar_proveedor(valor: str) -> ProveedorLLM:
@@ -96,8 +175,11 @@ def get_llm(
         "langchain_google_genai", "ChatGoogleGenerativeAI", "gemini"
     )
     return constructor_gemini(
-        model=nombre_modelo or os.getenv("SAGALE_GEMINI_MODEL", "gemini-2.5-flash"),
+        model=nombre_modelo or seleccionar_modelo_gemini(),
         temperature=temperatura,
+        timeout=25,
+        max_retries=0,
+        max_output_tokens=2048,
     )
 
 

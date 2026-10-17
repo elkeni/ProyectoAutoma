@@ -29,6 +29,7 @@ class Orquestador:
         *,
         dormir: Callable[[float], None] | None = None,
         respuestas_fake: list[str] | None = None,
+        proveedor_llm: str = "fake",
     ) -> None:
         self.base_datos = BaseDatos(ruta_base)
         self.indice = IndiceRAGAislado()
@@ -37,10 +38,10 @@ class Orquestador:
         self.a1 = AgenteA1(
             self.base_datos,
             self.a0,
-            proveedor_llm="fake",
+            proveedor_llm=proveedor_llm,
             respuestas_fake=respuestas_fake,
         )
-        self.a3 = AgenteA3(self.base_datos, self.indice)
+        self.a3 = AgenteA3(self.base_datos, self.indice, proveedor_llm=proveedor_llm)
         self.a2 = AgenteA2(self.base_datos)
 
     @staticmethod
