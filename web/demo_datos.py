@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
+from tempfile import mkdtemp
 
 from ingesta.gestor_recaudos import GestorRecaudos, IndiceRAGAislado, RecaudoEntrada
 from nucleo.base_datos import BaseDatos
@@ -286,6 +288,10 @@ CALIFICACION_CORREGIDA_EXP_003: dict[str, object] = {
 def ruta_base_demo() -> Path:
     """Ubicación local no compartida del SQLite de la demostración."""
 
+    if os.environ.get("VERCEL") == "1":
+        # El paquete desplegado es de solo lectura; cada instancia demo usa
+        # almacenamiento temporal independiente de las bases locales.
+        return Path(mkdtemp(prefix="sagale-demo-")) / "sagale_demo.sqlite3"
     return Path(__file__).resolve().parents[1] / "data" / "sagale_demo.sqlite3"
 
 

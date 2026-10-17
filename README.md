@@ -55,3 +55,16 @@ No introduzca datos reales ni utilice esta demo como servicio jurídico en produ
 
 GitHub Actions ejecuta las verificaciones del proyecto en cada cambio sin crear
 commits ni añadir colaboradores. Los commits se atribuyen al propietario.
+
+### Vercel
+
+La entrada FastAPI está declarada en `[tool.vercel]` y la versión Python en
+`.python-version`. `vercel.json` configura la función y `.vercelignore` excluye
+datos, credenciales, cachés y archivos de desarrollo del paquete publicado.
+
+Cuando `VERCEL=1`, la demo crea su SQLite en una carpeta temporal independiente:
+no intenta escribir en el código empaquetado. Cada instancia tiene su propia
+demo y checkpoints; el estado puede restablecerse al cambiar o reiniciar la
+instancia. Esta configuración permite mostrar la aplicación, pero no ofrece
+persistencia compartida entre funciones. Un uso real requiere almacenamiento
+externo y checkpoints persistentes, además de autenticación.

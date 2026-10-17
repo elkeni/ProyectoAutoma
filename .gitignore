@@ -36,3 +36,4 @@ htmlcov/
 *.tmp
 Thumbs.db
 .DS_Store
+.vercel/

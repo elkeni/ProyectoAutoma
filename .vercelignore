@@ -1,0 +1,16 @@
+.git/
+.claude/
+.env*
+.venv/
+venv/
+data/
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+tests/
+scripts/
+docs/pruebas-interfaz.png
+*.sqlite3*
+*.db*

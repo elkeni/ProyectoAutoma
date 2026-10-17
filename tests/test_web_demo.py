@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import mkdtemp
 from typing import cast
 
 import pytest
@@ -11,6 +12,28 @@ from fastapi.testclient import TestClient
 from nucleo.base_datos import BaseDatos
 from web.app import crear_app
 from web.demo_datos import cargar_datos_demo
+
+
+def test_vercel_usa_base_temporal_y_aisla_instancias(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setattr(
+        "web.demo_datos.mkdtemp", lambda prefix: mkdtemp(prefix=prefix, dir=tmp_path)
+    )
+    app_uno = crear_app()
+    app_dos = crear_app()
+    with TestClient(app_uno) as uno, TestClient(app_dos) as dos:
+        assert app_uno.state.servicio_demo.ruta_base != app_dos.state.servicio_demo.ruta_base
+        assert app_uno.state.servicio_demo.ruta_base.is_relative_to(tmp_path)
+        antes = dos.get("/api/dashboard").json()
+        assert (
+            uno.post("/api/whatsapp", json={"contenido": "Prueba de instancia Vercel"}).status_code
+            == 200
+        )
+        assert dos.get("/api/dashboard").json()["mensajes"] == antes["mensajes"]
+        assert uno.get("/catalogo").status_code == 200
+        assert uno.get("/api/minuta/EXP-2026-001/word").content.startswith(b"PK")
 
 
 @pytest.mark.parametrize("ruta", ["/api/whatsapp", "/api/rag"])
