@@ -104,6 +104,13 @@ identificadores llevan el prefijo `EXP-2026-001-LIVE-` y un sufijo único.
 Los casos interactivos dependen de la instancia: en Vercel pueden reiniciarse;
 para una exposición continua se recomienda ejecutar la aplicación localmente.
 
+Para volver al inicio del guion local, cierre `sagale-web` y ejecute
+`python scripts/reiniciar_demo.py`. Conserva la base anterior en
+`data/respaldos/` y prepara los cuatro casos iniciales, con tres controles
+humanos pendientes. Después vuelva a ejecutar `sagale-web`. El comando se
+niega a funcionar si el puerto 8000 está ocupado y no actúa sobre Vercel.
+En Vercel, un despliegue nuevo inicia instancias con bases temporales nuevas.
+
 El modelo se selecciona del catálogo disponible para la clave, priorizando Flash;
 puede fijarse con `SAGALE_GEMINI_MODEL`. Que aparezca en el catálogo no garantiza
 cuota de generación. Una suscripción a la aplicación Gemini no sustituye la

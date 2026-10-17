@@ -89,3 +89,5 @@ git_commit_publication = 'git -c user.name=StefanoG -c user.email=sroselg051@gma
 git_commit_ai = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Conectar Gemini con acceso privado y validacion de evidencia"'
 ia_remote = "python scripts/probar_ia_remota.py"
 git_commit_demo = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Permitir ensayos repetidos de registro y duplicados sin borrar expedientes"'
+reset_demo = "python scripts/reiniciar_demo.py"
+git_commit_reset = 'git -c user.name=StefanoG -c user.email=sroselg051@gmail.com commit -m "Preparar reinicio local de la demostracion con respaldo"'
