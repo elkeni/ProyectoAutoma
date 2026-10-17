@@ -1006,7 +1006,11 @@ def crear_app(ruta_base: str | Path | None = None) -> FastAPI:
         try:
             return servicio(request).consultar_ia(entrada)
         except ErrorIA as error:
-            raise HTTPException(status_code=502, detail=str(error)) from None
+            raise HTTPException(
+                status_code=502,
+                detail=str(error),
+                headers={"X-Sagale-IA-Tipo": error.origen, "X-Sagale-IA-Codigo": error.codigo},
+            ) from None
         except ValueError as error:
             raise _error_http(error) from None
         except RuntimeError:

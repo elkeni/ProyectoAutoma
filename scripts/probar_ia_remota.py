@@ -6,6 +6,7 @@ import json
 import secrets
 import shutil
 import subprocess
+import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -36,14 +37,23 @@ def llamada(
 ) -> tuple[int, dict[str, object]]:
     peticion = Request(
         BASE + ruta,
-        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+        headers={
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+            "User-Agent": "ProyectoAutoma-smoke-test",
+        },
         data=json.dumps(datos).encode() if datos is not None else None,
     )
     try:
         with urlopen(peticion, timeout=60) as r:
             return r.status, json.load(r)
     except HTTPError as error:
-        return error.code, json.load(error)
+        cuerpo = json.load(error)
+        tipo = error.headers.get("X-Sagale-IA-Tipo")
+        if tipo:
+            cuerpo["tipo_error"] = tipo
+        return error.code, cuerpo
 
 
 def main() -> None:
@@ -59,13 +69,23 @@ def main() -> None:
     try:
         print("Desplegando integración Gemini con secretos del servidor…", flush=True)
         vercel(["deploy", "--prod", "--yes", "--name", "proyecto-automa"])
-        codigo, estado = llamada(token, "/api/ia/estado")
+        codigo, estado = llamada(token, "/api/ia/estado?verificacion=" + secrets.token_hex(6))
+        for _ in range(4):
+            if codigo == 200 and estado.get("configurada") and estado.get("protegida"):
+                break
+            time.sleep(3)
+            codigo, estado = llamada(token, "/api/ia/estado?verificacion=" + secrets.token_hex(6))
         if codigo != 200 or not estado.get("configurada") or not estado.get("protegida"):
-            raise RuntimeError("Falta configurar clave o acceso privado en Production.")
+            raise RuntimeError(f"Configuración IA no verificada: HTTP {codigo}, estado {estado}.")
         codigo, modelos = llamada(token, "/api/ia/modelos")
         if codigo != 200:
             raise RuntimeError("Google no permitió consultar modelos con la clave configurada.")
         print("Modelo disponible seleccionado: " + str(modelos.get("seleccionado")), flush=True)
+        print(
+            "Modelos Flash del catálogo: "
+            + str([nombre for nombre in modelos.get("disponibles", []) if "flash" in nombre]),
+            flush=True,
+        )
         codigo, respuesta = llamada(
             token,
             "/api/ia/consultar",
@@ -76,7 +96,12 @@ def main() -> None:
         )
         if codigo != 200:
             # detail proviene únicamente de errores redactados por nuestro backend.
-            raise RuntimeError("Prueba de generación: " + str(respuesta.get("detail", codigo)))
+            raise RuntimeError(
+                "Prueba de generación: "
+                + str(respuesta.get("detail", codigo))
+                + " Tipo: "
+                + str(respuesta.get("tipo_error", "no indicado"))
+            )
         if not respuesta.get("citas"):
             raise RuntimeError("La prueba no devolvió evidencia citada verificable.")
         print("OK: respuesta real de Gemini validada y con citas del expediente.", flush=True)

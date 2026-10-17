@@ -109,3 +109,11 @@ Hay un límite local de 10 intentos por hora y expediente/versión y una separac
 de 15 segundos. Este contador se reinicia con la instancia Vercel y no sustituye
 los límites de gasto y cuotas que configure el propietario en Google AI Studio.
 El acceso privado evita exponer la cuota como una API de IA pública.
+
+Verificación del 2026-10-17: 194 pruebas locales aprobadas y dos comprobaciones
+reales satisfactorias en Vercel: consulta documental con citas y análisis P02
+detenido en `p2_legal`. El alias seleccionado fue `gemini-flash-latest`;
+`gemini-2.5-flash-lite` aparecía en el catálogo pero devolvía modelo no disponible
+al generar. Por eso se prioriza el alias Flash vigente, validando siempre la salida.
+El acceso temporal de pruebas fue retirado; la API key y la contraseña del
+propietario permanecieron cifradas en Vercel y no se descargaron al repositorio.

@@ -21,12 +21,14 @@ def llamar(ruta: str, datos: dict[str, object] | None = None) -> tuple[int, byte
 
 
 def main() -> None:
-    for ruta in ("/", "/health", "/catalogo", "/api/dashboard"):
+    for ruta in ("/", "/health", "/catalogo", "/api/dashboard", "/api/ia/estado"):
         codigo, cuerpo = llamar(ruta)
         if codigo != 200:
             raise SystemExit(f"Fallo en {ruta}: HTTP {codigo}; se omite el cuerpo por privacidad.")
         if ruta == "/health" and json.loads(cuerpo) != {"estado": "ok"}:
             raise SystemExit("La comprobación de disponibilidad no devolvió el estado esperado.")
+        if ruta == "/api/ia/estado":
+            print("Configuración IA: " + json.dumps(json.loads(cuerpo)))
         print(f"OK {ruta}")
     codigo, _ = llamar("/api/whatsapp", {"contenido": "   "})
     if codigo != 422:

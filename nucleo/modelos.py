@@ -30,26 +30,35 @@ class ErrorIA(RuntimeError):
 
     def __init__(self, codigo: str) -> None:
         self.codigo = codigo
+        self.origen = "ErrorIA"
         mensajes = {
             "CUOTA": "La cuota de Gemini está agotada o no habilitada para este proyecto de API.",
             "ACCESO": "Gemini rechazó el acceso; revise la clave y los permisos en AI Studio.",
             "FACTURACION": "El proyecto Gemini requiere revisar su facturación o saldo.",
             "VALIDACION": "La IA no devolvió una respuesta con evidencia verificable.",
+            "MODELO": "El modelo Gemini no está disponible para generar respuestas; revise SAGALE_GEMINI_MODEL.",
         }
         super().__init__(mensajes.get(codigo, "Gemini no respondió; intente de nuevo más tarde."))
 
 
 def error_ia_seguro(error: Exception) -> ErrorIA:
     detalle = str(error).casefold()
+    codigo = "PROVEEDOR"
     if "429" in detalle or "resource_exhausted" in detalle:
-        return ErrorIA("CUOTA")
-    if "402" in detalle:
-        return ErrorIA("FACTURACION")
-    if "401" in detalle or "403" in detalle or "api_key_invalid" in detalle:
-        return ErrorIA("ACCESO")
-    if isinstance(error, ValueError):
-        return ErrorIA("VALIDACION")
-    return ErrorIA("PROVEEDOR")
+        codigo = "CUOTA"
+    elif "402" in detalle:
+        codigo = "FACTURACION"
+    elif "401" in detalle or "403" in detalle or "api_key_invalid" in detalle:
+        codigo = "ACCESO"
+    elif "404" in detalle or "modelnotfound" in type(error).__name__.casefold():
+        codigo = "MODELO"
+    elif isinstance(error, ValueError):
+        codigo = "VALIDACION"
+    seguro = ErrorIA(codigo)
+    seguro.origen = type(error).__name__
+    if error.__cause__ is not None:
+        seguro.origen += "/" + type(error.__cause__).__name__
+    return seguro
 
 
 @lru_cache(maxsize=1)
@@ -80,7 +89,14 @@ def seleccionar_modelo_gemini() -> str:
     disponibles = listar_modelos_gemini()
     elegido = os.getenv("SAGALE_GEMINI_MODEL")
     candidatos = (
-        (elegido,) if elegido else ("gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash")
+        (elegido,)
+        if elegido
+        else (
+            "gemini-flash-latest",
+            "gemini-3.8-flash",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+        )
     )
     for candidato in candidatos:
         if candidato in disponibles:
@@ -178,8 +194,9 @@ def get_llm(
         model=nombre_modelo or seleccionar_modelo_gemini(),
         temperature=temperatura,
         timeout=25,
-        max_retries=0,
+        max_retries=1,
         max_output_tokens=2048,
+        vertexai=False,
     )
 
 
